@@ -33,24 +33,39 @@
     <h2 class="text-center mb-4">Control de Asistencia</h2>
 
     <div class="row g-3 mb-4 align-items-end">
-        <div class="col-12 col-md-4 d-flex gap-2">
+        <div class="col-12 col-xl-6 d-flex gap-2 flex-wrap">
             <div>
                 <label class="form-label fw-bold">Mes:</label>
                 <input type="month" id="filtroMes" class="form-control">
             </div>
+            
+            <!-- Dropdown Fechas -->
             <div class="dropdown align-self-end">
                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    Ordenar Integrantes
+                    📅 Ordenar Fechas
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" id="sortFechasDesc">⬇️ Recientes primero (Desc)</a></li>
+                    <li><a class="dropdown-item" href="#" id="sortFechasAsc">⬆️ Antiguas primero (Asc)</a></li>
+                </ul>
+            </div>
+
+            <!-- Dropdown Integrantes -->
+            <div class="dropdown align-self-end">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    👥 Ordenar Integrantes
                 </button>
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="#" id="sortDesc">⬆️ Más asistencias</a></li>
                     <li><a class="dropdown-item" href="#" id="sortAsc">⬇️ Menos asistencias</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" id="sortAz">🔤 Orden Alfabético</a></li>
+                    <li><a class="dropdown-item" href="#" id="sortAz">🔤 Orden A - Z</a></li>
+                    <li><a class="dropdown-item" href="#" id="sortZa">🔤 Orden Z - A</a></li>
                 </ul>
             </div>
         </div>
-        <div class="col-12 col-md-8 d-flex justify-content-md-end gap-2 flex-wrap">
+        
+        <div class="col-12 col-xl-6 d-flex justify-content-xl-end gap-2 flex-wrap">
             <button class="btn btn-dark" id="btnAbrirElenco">👥 Elenco</button>
             <button class="btn btn-primary" id="btnAbrirRegistro">📅 Nuevo Ensayo</button>
             <button class="btn btn-success" id="btnExportar">📊 Exportar Excel</button>
@@ -137,6 +152,9 @@
     let integrantes = [];
     let datosAsistencia = {};
     
+    // Estado del orden de fechas (Por defecto: más reciente arriba)
+    let ordenFechas = 'desc'; 
+    
     const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
     const cleanKey = (nom) => nom.replace(/[.#$/[\]]/g, "_");
 
@@ -187,7 +205,7 @@
         const mes = document.getElementById('filtroMes').value;
         const snapshot = await get(ref(db, `ensayos/${mes}`));
         datosAsistencia = snapshot.exists() ? snapshot.val() : {};
-        renderizarVistas(); // Dibuja todo después de tener los datos
+        renderizarVistas(); 
     }
 
     // CALCULAR PORCENTAJES
@@ -218,7 +236,7 @@
         return { stats, totalEnsayos };
     }
 
-    // DIBUJAR INTERFAZ (Separado para que los filtros funcionen rápido)
+    // DIBUJAR INTERFAZ
     function renderizarVistas() {
         const { stats, totalEnsayos } = obtenerEstadisticas();
 
@@ -229,10 +247,16 @@
             header.innerHTML += `<th><div class="nombre-corto">${formatearNombre(nom)}</div></th>`;
         });
 
-        // 2. DIBUJAR CUERPO DE LA TABLA (Ordenada por fecha: la más reciente arriba)
+        // 2. DIBUJAR CUERPO DE LA TABLA (Aplicando orden de fechas)
         const tbody = document.getElementById('cuerpoTabla');
         tbody.innerHTML = '';
-        Object.keys(datosAsistencia).sort().reverse().forEach(fechaKey => {
+        
+        let fechasOrdenadas = Object.keys(datosAsistencia).sort();
+        if (ordenFechas === 'desc') {
+            fechasOrdenadas.reverse(); // Más recientes arriba
+        }
+
+        fechasOrdenadas.forEach(fechaKey => {
             const ensayo = datosAsistencia[fechaKey];
             const diaSemana = obtenerNombreDia(ensayo.fecha);
             
@@ -310,7 +334,20 @@
         });
     }
 
-    // ORDENAMIENTO DE COLUMNAS (Botones del Dropdown)
+    // EVENTOS ORDENAMIENTO FECHAS
+    document.getElementById('sortFechasDesc').addEventListener('click', (e) => {
+        e.preventDefault();
+        ordenFechas = 'desc';
+        renderizarVistas();
+    });
+
+    document.getElementById('sortFechasAsc').addEventListener('click', (e) => {
+        e.preventDefault();
+        ordenFechas = 'asc';
+        renderizarVistas();
+    });
+
+    // EVENTOS ORDENAMIENTO INTEGRANTES
     document.getElementById('sortDesc').addEventListener('click', (e) => {
         e.preventDefault();
         const { stats } = obtenerEstadisticas();
@@ -331,11 +368,17 @@
         renderizarVistas();
     });
 
+    document.getElementById('sortZa').addEventListener('click', (e) => {
+        e.preventDefault();
+        integrantes.sort((a, b) => b.localeCompare(a));
+        renderizarVistas();
+    });
+
     // EVENTOS DE CAMBIO DE MES
     document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
     document.getElementById('filtroMes').addEventListener('change', cargarDatos);
 
-    // GUARDAR ASISTENCIA (Crear o Editar)
+    // GUARDAR ASISTENCIA
     document.getElementById('btnGuardar').addEventListener('click', async () => {
         const fecha = document.getElementById('fechaEnsayo').value;
         if(!fecha) return alert("Selecciona fecha");
@@ -351,7 +394,7 @@
         await set(ref(db, `ensayos/${mesRuta}/${fecha}`), registro);
         
         modalRegistroInstancia.hide();
-        await cargarDatos(); // Recarga y reordena las fechas
+        await cargarDatos(); 
     });
 
     // CRUD ELENCO Y ABRIR EDICIÓN DE ENSAYO
@@ -411,7 +454,7 @@
         }
     });
 
-    // EXPORTAR EXCEL CON ESTADÍSTICAS
+    // EXPORTAR EXCEL CON ORDENAMIENTOS Y ESTADÍSTICAS
     document.getElementById('btnExportar').addEventListener('click', async () => {
         const wb = new ExcelJS.Workbook();
         const ws = wb.addWorksheet('Asistencia');
@@ -421,8 +464,14 @@
         // Fila 1: Cabeceras
         ws.addRow(['Fecha', ...integrantes]);
         
+        // Ordenamiento de Fechas igual que la vista web
+        let fechasOrdenadas = Object.keys(datosAsistencia).sort();
+        if (ordenFechas === 'desc') {
+            fechasOrdenadas.reverse();
+        }
+        
         // Filas de datos
-        Object.keys(datosAsistencia).sort().forEach(fecha => {
+        fechasOrdenadas.forEach(fecha => {
             const ensayo = datosAsistencia[fecha];
             const diaSemana = obtenerNombreDia(ensayo.fecha);
             
