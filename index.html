@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia - Elenco</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        :root { --vde: #d4edda; --ama: #fff3cd; --roj: #f8d7da; }
+        .estado-asistio { background-color: var(--vde) !important; color: #155724; }
+        .estado-permiso { background-color: var(--ama) !important; color: #856404; }
+        .estado-falto { background-color: var(--roj) !important; color: #721c24; }
+        .table-responsive { max-height: 70vh; overflow-y: auto; border-radius: 8px; }
+        th { position: sticky; top: 0; background-color: #f8f9fa !important; z-index: 2; min-width: 120px; }
+        .nombre-corto { font-size: 0.9rem; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container-fluid px-4 py-4">
+    <h2 class="text-center mb-4">Sistema de Asistencia</h2>
+
+    <div class="row g-3 mb-4 align-items-end">
+        <div class="col-6 col-md-2">
+            <label class="form-label fw-bold">Filtrar Mes:</label>
+            <input type="month" id="filtroMes" class="form-control">
+        </div>
+        <div class="col-6 col-md-10 d-flex justify-content-end gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalElenco">
+                👥 Administrar Elenco
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registroModal">
+                📅 Nuevo Ensayo
+            </button>
+            <button class="btn btn-success" id="btnExportar">
+                Excel
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive shadow bg-white">
+        <table class="table table-sm table-bordered text-center align-middle mb-0" id="tablaAsistencia">
+            <thead class="table-light">
+                <tr id="headerNombres">
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTabla"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="registroModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Registrar Nuevo Ensayo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Fecha del Ensayo:</label>
+                    <input type="date" id="fechaEnsayo" class="form-control">
+                </div>
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table">
+                        <thead><tr><th>Nombre Completo</th><th>Estado</th><th>Hora</th></tr></thead>
+                        <tbody id="listaIntegrantesModal"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary w-100" id="btnGuardar">Guardar Asistencia</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalElenco" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Miembros del Elenco</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group mb-3">
+                    <input type="text" id="nuevoNombre" class="form-control" placeholder="Nombre completo...">
+                    <button class="btn btn-success" id="btnAgregarMiembro">Agregar</button>
+                </div>
+                <ul class="list-group" id="listaElencoCrud"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, query, orderBy, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDahLtxl19fR0JTQpQvxU8MrxLdmco7_XU",
+      authDomain: "asistencia-tini.firebaseapp.com",
+      projectId: "asistencia-tini",
+      storageBucket: "asistencia-tini.firebasestorage.app",
+      messagingSenderId: "1049723359333",
+      appId: "1:1049723359333:web:9046ff4cff059a03dab68c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let integrantes = [];
+    let datosAsistencia = [];
+
+    // Formatear nombre: "Juan Perez Garcia" -> "Juan Perez"
+    const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
+
+    async function cargarConfiguracion() {
+        const docRef = doc(db, "configuracion", "elenco");
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            integrantes = docSnap.data().miembros || [];
+        } else {
+            // Inicializar si no existe
+            await setDoc(docRef, { miembros: ["Giann Kalef", "Yessid Ejemplo"] });
+            integrantes = ["Giann Kalef", "Yessid Ejemplo"];
+        }
+        actualizarInterfaz();
+    }
+
+    function actualizarInterfaz() {
+        // Headers de la tabla (Nombres cortos)
+        const header = document.getElementById('headerNombres');
+        header.innerHTML = '<th>Fecha</th>';
+        integrantes.forEach(nom => {
+            const th = document.createElement('th');
+            th.innerHTML = `<div class="nombre-corto">${formatearNombre(nom)}</div>`;
+            header.appendChild(th);
+        });
+
+        // Modal de registro
+        const listModal = document.getElementById('listaIntegrantesModal');
+        listModal.innerHTML = '';
+        integrantes.forEach(nom => {
+            listModal.innerHTML += `
+                <tr>
+                    <td><small>${nom}</small></td>
+                    <td>
+                        <select class="form-select form-select-sm select-estado" data-full="${nom}">
+                            <option value="Asistió">Asistió</option>
+                            <option value="Permiso">Permiso</option>
+                            <option value="Faltó">Faltó</option>
+                        </select>
+                    </td>
+                    <td><input type="time" class="form-control form-control-sm input-hora" data-full="${nom}"></td>
+                </tr>`;
+        });
+
+        // CRUD Elenco
+        const crudList = document.getElementById('listaElencoCrud');
+        crudList.innerHTML = '';
+        integrantes.sort().forEach(nom => {
+            const li = document.createElement('li');
+            li.className = "list-group-item d-flex justify-content-between align-items-center";
+            li.innerHTML = `${nom} <button class="btn btn-sm btn-danger btn-borrar" data-full="${nom}">×</button>`;
+            crudList.appendChild(li);
+        });
+
+        renderizarTabla();
+    }
+
+    // AGREGAR MIEMBRO
+    document.getElementById('btnAgregarMiembro').addEventListener('click', async () => {
+        const nom = document.getElementById('nuevoNombre').value.trim();
+        if(!nom) return;
+        await updateDoc(doc(db, "configuracion", "elenco"), { miembros: arrayUnion(nom) });
+        document.getElementById('nuevoNombre').value = '';
+        await cargarConfiguracion();
+    });
+
+    // BORRAR MIEMBRO
+    document.addEventListener('click', async (e) => {
+        if(e.target.classList.contains('btn-borrar')){
+            const nom = e.target.getAttribute('data-full');
+            if(confirm(`¿Eliminar a ${nom} del elenco?`)){
+                await updateDoc(doc(db, "configuracion", "elenco"), { miembros: arrayRemove(nom) });
+                await cargarConfiguracion();
+            }
+        }
+    });
+
+    // GUARDAR ASISTENCIA
+    document.getElementById('btnGuardar').addEventListener('click', async () => {
+        const fecha = document.getElementById('fechaEnsayo').value;
+        if(!fecha) return alert("Selecciona fecha");
+
+        const registro = { fecha, mes: fecha.substring(0, 7), detalle: {} };
+        document.querySelectorAll('.select-estado').forEach(sel => {
+            const nom = sel.getAttribute('data-full');
+            const hora = document.querySelector(`.input-hora[data-full="${nom}"]`).value;
+            registro.detalle[nom] = { estado: sel.value, hora: sel.value === "Asistió" ? hora : "" };
+        });
+
+        await setDoc(doc(db, "ensayos", fecha), registro);
+        bootstrap.Modal.getInstance(document.getElementById('registroModal')).hide();
+        cargarDatos();
+    });
+
+    async function cargarDatos() {
+        const q = query(collection(db, "ensayos"), orderBy("fecha", "desc"));
+        const snap = await getDocs(q);
+        datosAsistencia = snap.docs.map(d => d.data());
+        renderizarTabla();
+    }
+
+    function renderizarTabla() {
+        const tbody = document.getElementById('cuerpoTabla');
+        tbody.innerHTML = '';
+        const mes = document.getElementById('filtroMes').value;
+        
+        datosAsistencia.filter(d => d.mes === mes).forEach(ensayo => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><small>${ensayo.fecha}</small></td>`;
+            integrantes.forEach(nom => {
+                const info = ensayo.detalle[nom] || { estado: "Faltó", hora: "" };
+                const td = document.createElement('td');
+                if(info.estado === "Asistió") {
+                    td.className = "estado-asistio";
+                    td.innerHTML = `✔<br><small>${info.hora}</small>`;
+                } else if(info.estado === "Permiso") {
+                    td.className = "estado-permiso";
+                    td.textContent = "P";
+                } else {
+                    td.className = "estado-falto";
+                    td.textContent = "✘";
+                }
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    document.getElementById('btnExportar').addEventListener('click', async () => {
+        const wb = new ExcelJS.Workbook();
+        const ws = wb.addWorksheet('Asistencia');
+        const mes = document.getElementById('filtroMes').value;
+        
+        ws.addRow(['Control de Asistencia - ' + mes]);
+        ws.addRow(['Fecha', ...integrantes]); // Nombres completos en Excel
+        
+        datosAsistencia.filter(d => d.mes === mes).forEach(ensayo => {
+            const fila = [ensayo.fecha];
+            integrantes.forEach(nom => {
+                const info = ensayo.detalle[nom] || { estado: "Faltó", hora: "" };
+                fila.push(info.estado === "Asistió" ? `Asistió (${info.hora})` : info.estado);
+            });
+            const row = ws.addRow(fila);
+            row.eachCell((cell, col) => {
+                if(col > 1) {
+                    if(cell.value.toString().includes("Asistió")) cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFC6EFCE'}};
+                    if(cell.value === "Permiso") cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFFFEB9C'}};
+                    if(cell.value === "Faltó") cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFFFC7CE'}};
+                }
+            });
+        });
+
+        const buf = await wb.xlsx.writeBuffer();
+        saveAs(new Blob([buf]), `Asistencia_${mes}.xlsx`);
+    });
+
+    document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
+    document.getElementById('filtroMes').addEventListener('change', renderizarTabla);
+    cargarConfiguracion();
+    cargarDatos();
+</script>
+</body>
+</html>
