@@ -21,6 +21,7 @@
         th { position: sticky; top: 0; background-color: #f8f9fa !important; z-index: 2; min-width: 110px; }
         .nombre-corto { font-size: 0.85rem; font-weight: bold; line-height: 1.2; }
         .btn-editar-ensayo { font-size: 0.75rem; padding: 2px 6px; }
+        .dia-semana { font-size: 0.85rem; color: #6c757d; text-transform: capitalize; }
     </style>
 </head>
 <body class="bg-light">
@@ -122,7 +123,6 @@
             modalElencoInstancia.show();
         });
 
-        // Limpiar el formulario al crear un Nuevo Ensayo
         document.getElementById('btnAbrirRegistro').addEventListener('click', () => {
             document.getElementById('tituloModalRegistro').innerText = "Registrar Nuevo Ensayo";
             document.getElementById('fechaEnsayo').value = '';
@@ -135,6 +135,15 @@
     let integrantes = [];
     let datosAsistencia = {};
     const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
+
+    // Función para obtener el día de la semana
+    const obtenerNombreDia = (fechaString) => {
+        const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const partes = fechaString.split('-'); // Dividimos YYYY-MM-DD
+        // Date(Año, Mes (0-11), Día)
+        const fecha = new Date(partes[0], partes[1] - 1, partes[2]);
+        return dias[fecha.getDay()];
+    };
 
     async function cargarConfiguracion() {
         try {
@@ -191,7 +200,6 @@
         cargarDatos();
     }
 
-    // Agregar Miembro
     document.getElementById('btnAgregarMiembro').addEventListener('click', async () => {
         const nom = document.getElementById('nuevoNombre').value.trim();
         if(!nom) return;
@@ -201,10 +209,7 @@
         actualizarInterfaz();
     });
 
-    // Delegación de eventos para botones dinámicos (Borrar/Editar Miembro y Editar Ensayo)
     document.addEventListener('click', async (e) => {
-        
-        // BORRAR MIEMBRO
         if(e.target.closest('.btn-borrar')){
             if(confirm("¿Seguro que deseas eliminar a esta persona del elenco?")){
                 const index = e.target.closest('.btn-borrar').getAttribute('data-index');
@@ -214,7 +219,6 @@
             }
         }
 
-        // EDITAR MIEMBRO
         if(e.target.closest('.btn-editar-miembro')){
             const index = e.target.closest('.btn-editar-miembro').getAttribute('data-index');
             const nombreViejo = integrantes[index];
@@ -227,7 +231,6 @@
             }
         }
 
-        // EDITAR ENSAYO (Abre el modal con los datos cargados)
         if(e.target.closest('.btn-editar-ensayo')){
             const fecha = e.target.closest('.btn-editar-ensayo').getAttribute('data-fecha');
             const ensayo = datosAsistencia[fecha];
@@ -235,7 +238,6 @@
             document.getElementById('tituloModalRegistro').innerText = `Editar Ensayo: ${fecha}`;
             document.getElementById('fechaEnsayo').value = fecha;
 
-            // Rellenar los datos de cada integrante
             document.querySelectorAll('.select-estado').forEach(sel => {
                 const nom = sel.getAttribute('data-full');
                 const cleanNom = nom.replace(/[.#$/[\]]/g, "_");
@@ -246,7 +248,7 @@
                     sel.value = info.estado;
                     inputHora.value = info.hora || "";
                 } else {
-                    sel.value = "Faltó"; // Valor por defecto si es alguien nuevo
+                    sel.value = "Faltó"; 
                     inputHora.value = "";
                 }
             });
@@ -255,7 +257,6 @@
         }
     });
 
-    // Guardar Asistencia (Sirve para crear y actualizar)
     document.getElementById('btnGuardar').addEventListener('click', async () => {
         const fecha = document.getElementById('fechaEnsayo').value;
         if(!fecha) return alert("Selecciona fecha");
@@ -284,12 +285,14 @@
             const ensayos = snapshot.val();
             Object.keys(ensayos).sort().reverse().forEach(fechaKey => {
                 const ensayo = ensayos[fechaKey];
+                const diaSemana = obtenerNombreDia(ensayo.fecha); // Calculamos el día
+                
                 const tr = document.createElement('tr');
                 
-                // Columna de la fecha con el botón de Editar
                 tr.innerHTML = `
                     <td>
                         <div class="d-flex flex-column align-items-center">
+                            <span class="dia-semana">${diaSemana}</span>
                             <strong>${ensayo.fecha}</strong>
                             <button class="btn btn-outline-primary btn-editar-ensayo mt-1" data-fecha="${ensayo.fecha}">✏️ Editar</button>
                         </div>
@@ -326,7 +329,11 @@
         ws.addRow(['Fecha', ...integrantes]);
         Object.keys(datosAsistencia).sort().forEach(fecha => {
             const ensayo = datosAsistencia[fecha];
-            const fila = [ensayo.fecha];
+            const diaSemana = obtenerNombreDia(ensayo.fecha);
+            
+            // Agregamos el día de la semana también en el Excel
+            const fila = [`${ensayo.fecha} (${diaSemana})`];
+            
             integrantes.forEach(nom => {
                 const cleanNom = nom.replace(/[.#$/[\]]/g, "_");
                 const info = ensayo.detalle[cleanNom] || { estado: "Faltó", hora: "" };
