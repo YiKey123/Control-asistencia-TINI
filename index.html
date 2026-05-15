@@ -224,17 +224,17 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
         
-        // Función para aplicar tu regla de 1er y 3er nombre
+        // Función para aplicar tu regla de 1er y 3er nombre (con salto de línea)
         const formatearNombre = (full) => {
             const partes = full.trim().split(' ');
             if (partes.length === 1) return partes[0];
-            if (partes.length === 2) return `${partes[0]} ${partes[1]}`;
-            if (partes.length >= 3) return `${partes[0]} ${partes[2]}`;
+            if (partes.length === 2) return `${partes[0]}<br>${partes[1]}`;
+            if (partes.length >= 3) return `${partes[0]}<br>${partes[2]}`;
             return full;
         };
 
@@ -267,7 +267,6 @@
                         let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
                         detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
                     });
-                    // Agregamos el campo lugar vacío
                     await set(ensayoRef, { fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin, coreografias: ens.coreografias, lugar: "", detalle: detalle });
                 }
             }
@@ -381,7 +380,8 @@
             if(sortMiem === 'zA') elencoOrd.sort((a,b) => b.nombre.localeCompare(a.nombre));
 
             const head = document.getElementById('headerAdmin');
-            head.innerHTML = '<th class="align-middle text-start" style="min-width: 150px;">👥 Integrante</th>';
+            // Ancho reducido significativamente (de 150px a 90px)
+            head.innerHTML = '<th class="align-middle text-start" style="min-width: 90px;">👥 Integrante</th>';
             
             fechasTodas.forEach(f => {
                 const ens = asistencia[f];
@@ -403,7 +403,6 @@
             body.innerHTML = '';
             elencoOrd.forEach(m => {
                 const tr = document.createElement('tr');
-                // Uso de formatearNombre para hacer la columna más angosta
                 tr.innerHTML = `<th class="text-start align-middle bg-white nombre-corto">${formatearNombre(m.nombre)}</th>`;
                 
                 fechasTodas.forEach(f => {
