@@ -335,7 +335,7 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
-                        // ==========================================
+                                // ==========================================
         // MÓDULO 5: RENDERIZADO DE INTERFAZ
         // ==========================================
         function renderUI() {
@@ -351,7 +351,7 @@
                     <span class="small">${obtenerDia(f)}</span><strong>${f.split('-').slice(1).join('/')}</strong>
                     <div class="d-flex gap-1 mt-1">
                         <button class="btn btn-sm btn-outline-dark btn-edi py-0 px-1" data-fecha="${f}">✏️</button>
-                        <button class="btn btn-sm btn-success btn-scan py-0 px-1" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
+                        <button class="btn btn-sm btn-success btn-scan py-0 px-1" data-fecha="${f}" data-hora="${ens.horaInicio}" data-horafin="${ens.horaFin}">📷</button>
                     </div></div></th>`;
             });
             head.innerHTML += `<th>% Asis</th><th>% Total</th><th>⭐ Pts</th>`;
@@ -402,7 +402,6 @@
                     <small class="text-primary fw-bold">📍 ${ens.lugar || "SoulFit"}</small></li>`;
             });
 
-            // REPARACIÓN: LLENADO DE LISTAS DEL MODAL PERMISOS
             const selE = document.getElementById('permisoEns');
             selE.innerHTML = '<option value="">-- Elige la fecha --</option>';
             fechasTodas.forEach(f => selE.innerHTML += `<option value="${f}">${obtenerDia(f)} ${f}</option>`);
@@ -412,7 +411,7 @@
             [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
         }
 
-                // ==========================================
+                        // ==========================================
         // MÓDULO 6: CÁMARA TRASERA Y QR
         // ==========================================
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
@@ -457,8 +456,13 @@
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-scan')) {
                 const b = e.target.closest('.btn-scan');
-                scanConfig = { fecha: b.dataset.fecha, hora: b.dataset.hora };
-                document.getElementById('infoScanLable').innerText = `${scanConfig.fecha} | Inicio: ${scanConfig.hora}`;
+                // Ahora el escáner guarda también la hora de finalización
+                scanConfig = { 
+                    fecha: b.dataset.fecha, 
+                    hora: b.dataset.hora,
+                    horaFin: b.dataset.horafin || "23:59"
+                };
+                document.getElementById('infoScanLable').innerText = `${scanConfig.fecha} | ${scanConfig.hora} - ${scanConfig.horaFin}`;
                 
                 new bootstrap.Modal(document.getElementById('modalScanner')).show();
                 
@@ -491,24 +495,42 @@
             const now = new Date();
             const hrReal = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
-            // Lógica para preservar el permiso
-            const prev = asistencia[scanConfig.fecha].detalle[id];
-            let hrFinal = hrReal;
+            // Revisa si existe algún permiso activo para esa persona
+            let permisoActivo = null;
+            Object.values(listaPermisos).forEach(p => {
+                if(p.miemId === id && p.fecha === scanConfig.fecha) permisoActivo = p;
+            });
 
-            if (prev && prev.hora && prev.hora !== "-") {
-                // Si el registro de la hora incluye alguna de estas palabras, es que tenía permiso especial
-                if (prev.hora.includes("tarde") || prev.hora.includes("temprano") || prev.estado === "Permiso") {
-                    // Extraemos solo la etiqueta inicial antes de los dos puntos (ej: "Llegaré tarde")
-                    const tipoPermiso = prev.hora.split(':')[0];
-                    hrFinal = `${hrReal} (${tipoPermiso})`;
+            // REGLA 1: Rechazo si el ensayo ya terminó (después de horaFin) y NO tiene permiso para llegar tarde
+            if (hrReal > scanConfig.horaFin) {
+                if (!permisoActivo || permisoActivo.tipo !== "Llegaré tarde") {
+                    txt.className="scan-success-toast bg-danger text-white border-danger text-center"; 
+                    txt.innerHTML = `❌ Fuera de horario<br><small>El ensayo terminó a las ${scanConfig.horaFin}.<br>No tienes permiso de tardanza.</small>`; 
+                    setTimeout(()=> { res.style.display='none'; if(html5QrCode) html5QrCode.resume(); }, 3500); 
+                    return;
                 }
             }
-            
+
+            // REGLA 2: Determina el texto a guardar y las felicitaciones
+            let hrFinal = hrReal;
+            let notaExtra = "";
+
+            if (permisoActivo) {
+                if (permisoActivo.tipo === "Falta completa") {
+                    // Si iba a faltar, se limpia la excusa, marca su hora de llegada y lanza mensaje especial
+                    notaExtra = "<br><span class='text-warning d-block mt-2'>¡Anuló su falta! 🎉</span>";
+                } else {
+                    // Si llega tarde o se va temprano justificado, se añade a la hora
+                    hrFinal = `${hrReal} (${permisoActivo.tipo})`;
+                }
+            }
+
             try {
                 await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: "Asistió", hora: hrFinal });
                 asistencia[scanConfig.fecha].detalle[id] = { estado: "Asistió", hora: hrFinal }; 
+                
                 txt.className="scan-success-toast text-center"; 
-                txt.innerHTML = `✅ ¡Registrado!<br><span class="text-dark">${miem.nombre}</span><br><small class="text-muted">Asistió (${hrFinal})</small>`;
+                txt.innerHTML = `✅ ¡Registrado!<br><span class="text-dark">${miem.nombre}</span><br><small class="text-muted">Asistió (${hrFinal})</small>${notaExtra}`;
             } catch (er) { 
                 txt.className="scan-success-toast bg-danger text-white border-danger"; 
                 txt.innerHTML = "Error conexión"; 
@@ -517,7 +539,7 @@
             setTimeout(() => { 
                 res.style.display='none'; 
                 if(html5QrCode) html5QrCode.resume(); 
-            }, 2000);
+            }, 2500);
         }
 
         document.getElementById('modalScanner').addEventListener('hidden.bs.modal', () => {
@@ -625,7 +647,7 @@
             cargarDatos();
         };
 
-                        // ==========================================
+                                // ==========================================
         // MÓDULO 8: GESTIÓN DE PERMISOS
         // ==========================================
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
@@ -641,9 +663,17 @@
                 miemId: id, fecha: fecha, tipo: tipo, razon: razon, enviada: new Date().toISOString() 
             });
             
-            let estadoBase = "Permiso"; 
-            if (tipo === "Llegaré tarde" || tipo === "Me iré temprano") {
-                estadoBase = "Asistió";
+            // Lógica inteligente de estados
+            let estadoActual = "Pendiente";
+            if (asistencia[fecha] && asistencia[fecha].detalle[id]) {
+                estadoActual = asistencia[fecha].detalle[id].estado;
+            }
+
+            let estadoBase = estadoActual; 
+            if (tipo === "Falta completa") {
+                estadoBase = "Permiso"; // Falta justificada
+            } else if (estadoActual === "Permiso") {
+                estadoBase = "Pendiente"; // Si cambió de idea y ahora sí irá (tarde/temprano), vuelve a Pendiente hasta que escanee.
             }
 
             const mes = fecha.substring(0, 7);
@@ -680,17 +710,15 @@
             });
         }
 
-        // NUEVA LÓGICA DE EDICIÓN DOBLE (TIPO Y MOTIVO)
         document.addEventListener('click', async (e) => {
             if(e.target.closest('.btn-edit-permiso')) {
                 const pId = e.target.closest('.btn-edit-permiso').dataset.pid;
                 const permiso = listaPermisos[pId];
                 if(!permiso) return;
 
-                // 1. Pedir nuevo Tipo
                 let opciones = "Elige el número del nuevo tipo:\n1: Falta completa\n2: Llegaré tarde\n3: Me iré temprano\n4: Otro";
                 let nTipoNum = prompt(`Tipo actual: ${permiso.tipo}\n\n${opciones}`, "");
-                if(nTipoNum === null) return; // Canceló
+                if(nTipoNum === null) return; 
                 
                 let nuevoTipo = permiso.tipo;
                 if(nTipoNum === "1") nuevoTipo = "Falta completa";
@@ -699,30 +727,32 @@
                 else if(nTipoNum === "4") nuevoTipo = "Otro";
                 else if(nTipoNum.trim() !== "") alert("Número no válido. Se mantendrá el tipo actual.");
 
-                // 2. Pedir nuevo Motivo
                 const nuevaRazon = prompt("Editar motivo / justificación:", permiso.razon);
-                if(nuevaRazon === null) return; // Canceló
+                if(nuevaRazon === null) return; 
 
                 if (nuevaRazon.trim() !== "" || nuevoTipo !== permiso.tipo) {
                     permiso.tipo = nuevoTipo;
                     permiso.razon = nuevaRazon.trim();
                     
-                    // Actualizar en base de datos de permisos
                     await update(ref(db, `permisos/${pId}`), { tipo: permiso.tipo, razon: permiso.razon });
                     
-                    // Evaluar si cambia de color en la tabla de asistencia
-                    let estadoBase = "Permiso"; 
-                    if (permiso.tipo === "Llegaré tarde" || permiso.tipo === "Me iré temprano") {
-                        estadoBase = "Asistió";
+                    let estadoActual = "Pendiente";
+                    if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
+                        estadoActual = asistencia[permiso.fecha].detalle[permiso.miemId].estado;
+                    }
+
+                    let estadoBase = estadoActual; 
+                    if (permiso.tipo === "Falta completa") {
+                        estadoBase = "Permiso";
+                    } else if (estadoActual === "Permiso" && permiso.tipo !== "Falta completa") {
+                        estadoBase = "Pendiente";
                     }
 
                     const mes = permiso.fecha.substring(0, 7);
                     const anotacion = `${permiso.tipo}: ${permiso.razon}`.substring(0, 15) + "...";
                     
-                    // Actualizar en la base de datos de ensayos
                     await update(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}`), { estado: estadoBase, hora: anotacion });
                     
-                    // Actualizar vista local
                     if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
                         asistencia[permiso.fecha].detalle[permiso.miemId].estado = estadoBase;
                         asistencia[permiso.fecha].detalle[permiso.miemId].hora = anotacion;
