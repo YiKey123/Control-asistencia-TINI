@@ -173,7 +173,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script type="module">
+        <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
@@ -200,12 +200,40 @@
         let sortMiem = 'none';
 
         // ==========================================
-        // CARGA DE HISTORIAL EXCEL ACTUALIZADA
+        // 1. DATOS BASE Y HISTORIAL EXCEL
         // ==========================================
+        const integrantesExcel = [
+            "Adrian Mauro Balderrama Fernandez", "Alejandra Patricia Jemio Berrios", 
+            "Ana Camila Joicet Vallejos Rojas", "Ana Yolanda Arancibia Castro", 
+            "Andrea Nicol Gamarra Molina", "Camila Alejandra Duran Sologuren", 
+            "Diego Garcia Veizaga", "Fabiana Andrea De La Barra Gallo", 
+            "Fabiana Belen Aduviri Chura", "Fabiana Miranda", 
+            "Fabiola Ariel Navarro Moreno", "Franco", 
+            "Gabriel Carlos Leaño Gonzales", "Gabriela Stephanie Altamirano Begazo", 
+            "Giann Kalef Ledezma Ramos", "Gustavo Alfredo Cespedes Cespedes", 
+            "Ian Fredy Gallardo Mendieta", "Karen Flores", 
+            "Liz Gloria Nuñez Miranda", "Luciana Belen Casanova Velarde", 
+            "Luciana Belen Fernandez Venegas", "Mauricio Alejandro Casanova Velarde", 
+            "Micaela Andrea Soliz Rivas", "Milton Adrian Rendon Quisbert", "Natalia Burgoa"
+        ];
+
         const historialEnsayos = [
-            { fecha: "2026-05-08", horaInicio: "19:00", horaFin: "21:00", coreografias: "A quien le importa", valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] },
-            { fecha: "2026-05-10", horaInicio: "15:00", horaFin: "18:00", coreografias: "Livin' la vida loca y Azúcar Amargo", valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] },
-            { fecha: "2026-05-13", horaInicio: "18:00", horaFin: "20:00", coreografias: "Cuando seas grande", valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] },
+            {
+                fecha: "2026-05-08", horaInicio: "19:00", horaFin: "21:00", coreografias: "A quien le importa",
+                // Camila (-1), Ian (0)
+                valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1]
+            },
+            {
+                fecha: "2026-05-10", horaInicio: "15:00", horaFin: "18:00", coreografias: "Livin' la vida loca y Azúcar Amargo",
+                // Camila (-1), Ian (-1)
+                valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1]
+            },
+            {
+                fecha: "2026-05-13", horaInicio: "18:00", horaFin: "20:00", coreografias: "Cuando seas grande",
+                // Camila (1), Ian (-1)
+                valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1]
+            },
+            // LOS DEMÁS ESTÁN VACÍOS PARA QUE MARQUEN "PENDIENTE"
             { fecha: "2026-05-15", horaInicio: "18:30", horaFin: "21:00", coreografias: "La Muralla / Torero", valores: [] },
             { fecha: "2026-05-17", horaInicio: "15:00", horaFin: "19:00", coreografias: "Caprichosa / Oye Mi amor / Claridad", valores: [] },
             { fecha: "2026-05-19", horaInicio: "18:00", horaFin: "20:00", coreografias: "Ahora te puedes marchar", valores: [] },
@@ -221,6 +249,10 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
+        const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
+        const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
+        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
+
         function traducirAsistencia(valor, horaInicio) {
             if (valor === 1) {
                 let [h, m] = horaInicio.split(':').map(Number);
@@ -235,29 +267,29 @@
         }
 
         async function subirHistorial() {
-            const eSnap = await get(child(ref(db), 'configuracion/elenco'));
-            if(!eSnap.exists()) return;
-            let elencoDB = eSnap.val();
+            let elencoDB = [...elenco];
             elencoDB.sort((a,b) => a.nombre.localeCompare(b.nombre));
 
-            let batchMensual = {};
-            historialEnsayos.forEach(ens => {
-                let detalle = {};
-                elencoDB.forEach((miembro, index) => {
-                    let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
-                    detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
-                });
-                
+            for (const ens of historialEnsayos) {
                 const mesRuta = ens.fecha.substring(0, 7);
-                if (!batchMensual[mesRuta]) batchMensual[mesRuta] = {};
+                const ensayoRef = ref(db, `ensayos/${mesRuta}/${ens.fecha}`);
+                const eSnap = await get(ensayoRef);
                 
-                batchMensual[mesRuta][ens.fecha] = {
-                    fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin,
-                    coreografias: ens.coreografias, detalle: detalle
-                };
-            });
-
-            for (let mes in batchMensual) { await update(ref(db, `ensayos/${mes}`), batchMensual[mes]); }
+                // Solo lo subimos si ese ensayo NO existe en Firebase
+                // Así no borramos las cosas que modifiques manualmente después.
+                if (!eSnap.exists()) {
+                    let detalle = {};
+                    elencoDB.forEach((miembro, index) => {
+                        let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
+                        detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
+                    });
+                    
+                    await set(ensayoRef, {
+                        fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin,
+                        coreografias: ens.coreografias, detalle: detalle
+                    });
+                }
+            }
         }
 
         async function init() {
@@ -266,7 +298,13 @@
                 if(pSnap.exists()) passAdmin = pSnap.val();
                 
                 const eSnap = await get(child(ref(db), 'configuracion/elenco'));
-                if(eSnap.exists()) elenco = eSnap.val();
+                if(eSnap.exists()) {
+                    elenco = eSnap.val();
+                } else {
+                    // Si el elenco no existe, lo creamos con los nombres corregidos
+                    elenco = integrantesExcel.map(n => ({ id: generarId(), nombre: n }));
+                    await set(ref(db, 'configuracion/elenco'), elenco);
+                }
 
                 if (elenco.length > 0) {
                     document.getElementById('statusText').innerText = "Traduciendo y subiendo historial Excel...";
@@ -290,7 +328,6 @@
         function obtenerEstadisticas() {
             let stats = {};
             let tEnsayosActivos = 0;
-            // Se agregó puntaje: 0
             elenco.forEach(m => stats[m.id] = { asis: 0, perm: 0, atrasos: 0, pctN: 0, pctJ: 0, puntaje: 0 });
 
             if(Object.keys(asistencia).length > 0) {
@@ -405,8 +442,6 @@
                 const fN = document.getElementById('footAsisNeto'); fN.innerHTML = '<td>% Asistencias</td>';
                 const fJ = document.getElementById('footAsisJust'); fJ.innerHTML = '<td>% (+ Permisos)</td>';
                 const fA = document.getElementById('footAtrasos'); fA.innerHTML = '<td>🔴 Atrasos Injusti.</td>';
-                
-                // NUEVA FILA DE PUNTAJE
                 const fP = document.getElementById('footPuntaje'); fP.innerHTML = '<td>⭐ Puntaje Total</td>';
 
                 elencoOrd.forEach(m => {
@@ -426,10 +461,6 @@
             }
         }
 
-        const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
-        const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
-        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
-
         // BUSCADOR QR Y GENERACIÓN
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
@@ -443,7 +474,6 @@
                 btn.onclick = () => {
                     document.getElementById('displayNombre').innerText = m.nombre;
                     const qr = document.getElementById('qrcode'); qr.innerHTML = '';
-                    // Genera el QR (qrcode.js inserta un canvas y un img)
                     new QRCode(qr, { text: m.id, width: 200, height: 200 });
                     document.getElementById('areaQR').style.display = 'block';
                     res.innerHTML = ''; document.getElementById('inputBuscaNombre').value = m.nombre;
@@ -455,31 +485,25 @@
         // DESCARGAR IMAGEN QR
         document.getElementById('btnDescargarQR').addEventListener('click', () => {
             const nombre = document.getElementById('displayNombre').innerText;
-            // Qrcode.js genera un <canvas> interno que podemos capturar
             const qrCanvasOriginal = document.querySelector('#qrcode canvas');
             if(!qrCanvasOriginal) return alert("Por favor espera a que el QR se genere completamente.");
 
-            // Creamos un canvas nuevo para dibujar el diseño completo (Fondo, Texto, QR)
             const canvasFinal = document.createElement('canvas');
             const ctx = canvasFinal.getContext('2d');
             canvasFinal.width = 320;
             canvasFinal.height = 380;
 
-            // 1. Fondo blanco
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvasFinal.width, canvasFinal.height);
 
-            // 2. Título Superior
-            ctx.fillStyle = "#0d6efd"; // Azul primario
+            ctx.fillStyle = "#0d6efd";
             ctx.font = "bold 20px Arial";
             ctx.textAlign = "center";
             ctx.fillText("Control de asistencia TINI", canvasFinal.width / 2, 40);
 
-            // 3. Dibujar el QR en el medio
             ctx.drawImage(qrCanvasOriginal, 60, 70, 200, 200);
 
-            // 4. Nombre del integrante abajo
-            ctx.fillStyle = "#212529"; // Oscuro
+            ctx.fillStyle = "#212529";
             ctx.font = "bold 16px Arial";
             ctx.fillText(nombre, canvasFinal.width / 2, 320);
             
@@ -487,7 +511,6 @@
             ctx.fillStyle = "#6c757d";
             ctx.fillText("Guarda esta imagen para tus ensayos", canvasFinal.width / 2, 345);
 
-            // 5. Convertir a imagen y descargar con FileSaver.js
             canvasFinal.toBlob((blob) => {
                 saveAs(blob, `QR_Tini_${nombre.split(' ')[0]}.jpg`);
             }, "image/jpeg");
@@ -710,6 +733,7 @@
             } else alert("Contraseña incorrecta");
         };
 
+        //Inicialización de la app
         init();
     </script>
 </body>
