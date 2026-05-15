@@ -600,26 +600,63 @@
             cargarDatos();
         };
 
-        // CRUD ELENCO
+                // CRUD ELENCO (VERSIÓN CORREGIDA)
         document.getElementById('btnManageElenco').onclick = () => {
-            const ul = document.getElementById('listaElencoCrud'); ul.innerHTML = '';
-            elenco.forEach((m, i) => {
-                ul.innerHTML += `<li class="list-group-item d-flex justify-content-between"><span>${m.nombre}</span>
-                <div><button class="btn btn-sm btn-warning btn-edit-m" data-i="${i}">✏️</button> <button class="btn btn-sm btn-danger btn-del-m" data-i="${i}">×</button></div></li>`;
-            });
+            actualizarListaVisualElenco();
             new bootstrap.Modal(document.getElementById('modalElenco')).show();
         };
+
         document.getElementById('btnAddMiem').onclick = async () => {
             const n = document.getElementById('nuevoNombre').value.trim();
-            if(n) { elenco.push({id: generarId(), nombre: n}); await set(ref(db, 'configuracion/elenco'), elenco); document.getElementById('btnManageElenco').click(); }
+            if(n) {
+                const nuevoMiem = { id: generarId(), nombre: n };
+                elenco.push(nuevoMiem);
+                try {
+                    await set(ref(db, 'configuracion/elenco'), elenco);
+                    document.getElementById('nuevoNombre').value = '';
+                    actualizarListaVisualElenco(); 
+                    alert("Miembro agregado. Recarga la página (F5) al terminar para actualizar las tablas.");
+                } catch (e) {
+                    console.error("Error al agregar:", e);
+                }
+            }
         };
+
         document.addEventListener('click', async (e) => {
-            if(e.target.closest('.btn-del-m')){ elenco.splice(e.target.closest('.btn-del-m').dataset.i, 1); await set(ref(db, 'configuracion/elenco'), elenco); document.getElementById('btnManageElenco').click(); }
+            if(e.target.closest('.btn-del-m')){
+                const i = e.target.closest('.btn-del-m').dataset.i;
+                if(confirm(`¿Eliminar a ${elenco[i].nombre}?`)) {
+                    elenco.splice(i, 1);
+                    await set(ref(db, 'configuracion/elenco'), elenco);
+                    actualizarListaVisualElenco();
+                }
+            }
             if(e.target.closest('.btn-edit-m')){
-                const i = e.target.closest('.btn-edit-m').dataset.i; const nn = prompt("Nombre:", elenco[i].nombre);
-                if(nn) { elenco[i].nombre = nn.trim(); await set(ref(db, 'configuracion/elenco'), elenco); document.getElementById('btnManageElenco').click(); }
+                const i = e.target.closest('.btn-edit-m').dataset.i;
+                const nn = prompt("Nuevo nombre:", elenco[i].nombre);
+                if(nn && nn.trim() !== "") {
+                    elenco[i].nombre = nn.trim();
+                    await set(ref(db, 'configuracion/elenco'), elenco);
+                    actualizarListaVisualElenco();
+                }
             }
         });
+
+        function actualizarListaVisualElenco() {
+            const ul = document.getElementById('listaElencoCrud');
+            ul.innerHTML = '';
+            elenco.forEach((m, i) => {
+                ul.innerHTML += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>${m.nombre}</span>
+                    <div>
+                        <button class="btn btn-sm btn-warning btn-edit-m" data-i="${i}">✏️</button>
+                        <button class="btn btn-sm btn-danger btn-del-m" data-i="${i}">×</button>
+                    </div>
+                </li>`;
+            });
+        }
+
 
         // BANDEJA Y PASS
         document.getElementById('btnManagePermisos').onclick = () => {
