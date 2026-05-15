@@ -222,10 +222,11 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-                // ==========================================
+                        // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
+        
         const formatearNombre = (full) => {
             const partes = full.trim().split(' ');
             if (partes.length === 1) return partes[0];
@@ -233,6 +234,8 @@
             if (partes.length >= 3) return `${partes[0]}<br>${partes[2]}`;
             return full;
         };
+
+        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
 
         function traducirAsistencia(valor, horaInicio) {
             if (valor === 1) {
@@ -245,6 +248,57 @@
             if (valor === 0) return { estado: "Permiso", hora: "Justificado" };
             if (valor === -1) return { estado: "Faltó", hora: "" };
             return { estado: "Pendiente", hora: "-" }; 
+        }
+
+        async function subirHistorial() {
+            let elencoDB = [...elenco];
+            elencoDB.sort((a,b) => a.nombre.localeCompare(b.nombre));
+
+            for (const ens of historialEnsayos) {
+                const mesRuta = ens.fecha.substring(0, 7);
+                const ensayoRef = ref(db, `ensayos/${mesRuta}/${ens.fecha}`);
+                const eSnap = await get(ensayoRef);
+                if (!eSnap.exists()) {
+                    let detalle = {};
+                    elencoDB.forEach((miembro, index) => {
+                        let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
+                        detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
+                    });
+                    await set(ensayoRef, { fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin, coreografias: ens.coreografias, lugar: "", detalle: detalle });
+                }
+            }
+        }
+
+        async function init() {
+            try {
+                const pSnap = await get(child(ref(db), 'configuracion/password'));
+                if(pSnap.exists()) passAdmin = pSnap.val();
+                
+                const eSnap = await get(child(ref(db), 'configuracion/elenco'));
+                if(eSnap.exists()) {
+                    elenco = eSnap.val();
+                } else {
+                    elenco = integrantesExcel.map(n => ({ id: generarId(), nombre: n }));
+                    await set(ref(db, 'configuracion/elenco'), elenco);
+                }
+
+                if (elenco.length > 0) {
+                    document.getElementById('statusText').innerText = "Cargando :b";
+                    await subirHistorial();
+                }
+
+                document.getElementById('loadingScreen').style.display = 'none';
+                await cargarDatos();
+            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión a la base de datos.</span>"; }
+        }
+
+        async function cargarDatos() {
+            const mes = document.getElementById('filtroMes').value || new Date().toISOString().substring(0, 7);
+            const snap = await get(ref(db, `ensayos/${mes}`));
+            asistencia = snap.exists() ? snap.val() : {};
+            const pSnap = await get(ref(db, `permisos`));
+            listaPermisos = pSnap.exists() ? pSnap.val() : {};
+            renderUI();
         }
 
         function obtenerEstadisticas() {
@@ -533,7 +587,7 @@
             new bootstrap.Modal(document.getElementById('modalBandeja')).show();
         };
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 9: CRUD ELENCO Y EXPORTACIÓN EXCEL
         // ==========================================
         document.getElementById('btnManageElenco').onclick = () => {
@@ -598,17 +652,14 @@
                 fs.forEach(f => {
                     const i = asistencia[f].detalle[m.id]||{estado:"Pendiente",hora:"-"};
                     if(i.estado==="Pendiente") row.push("-");
-                    else if(i.estado==="Puntual"||(i.estado==="Asistió"&&i.hora<=asistencia[f].horaInicio)) row.push(`Puntual (${i.hora})`);
-                    else if(i.estado==="Atrasado"||(i.estado==="Asistió"&&i.hora>asistencia[f].horaInicio)) row.push(`Atrasado (${i.hora})`);
-                    else if(i.estado==="Permiso tarde") row.push(`Permiso Tarde (${i.hora})`);
-                    else if(i.estado==="Permiso") row.push("Permiso"); else row.push("Faltó");
+                    else if(i.estado==="Asistió") row.push(`Asistió (${i.hora})`);
+                    else if(i.estado==="Permiso") row.push("Permiso"); 
+                    else row.push("Faltó");
                 });
                 const r = ws.addRow(row);
                 r.eachCell((c, col) => { if(col>1 && c.value) {
                     let v = c.value.toString();
-                    if(v.includes("Puntual")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}};
-                    else if(v.includes("Atrasado")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFCC99'}};
-                    else if(v.includes("Permiso Tarde")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFB8CCE4'}};
+                    if(v.includes("Asistió")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}};
                     else if(v.includes("Permiso")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFEB9C'}};
                     else if(v.includes("Faltó")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC7CE'}};
                     else if(v.includes("-")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}};
