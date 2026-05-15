@@ -335,7 +335,7 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
-                // ==========================================
+                        // ==========================================
         // MÓDULO 5: RENDERIZADO DE INTERFAZ
         // ==========================================
         function renderUI() {
@@ -401,6 +401,15 @@
                     <small class="text-muted d-block">🎭 ${ens.coreografias || "TBD"}</small>
                     <small class="text-primary fw-bold">📍 ${ens.lugar || "SoulFit"}</small></li>`;
             });
+
+            // REPARACIÓN: LLENADO DE LISTAS DEL MODAL PERMISOS
+            const selE = document.getElementById('permisoEns');
+            selE.innerHTML = '<option value="">-- Elige la fecha --</option>';
+            fechasTodas.forEach(f => selE.innerHTML += `<option value="${f}">${obtenerDia(f)} ${f}</option>`);
+
+            const selM = document.getElementById('permisoMiem');
+            selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
+            [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
         }
 
                 // ==========================================
@@ -616,7 +625,7 @@
             cargarDatos();
         };
 
-                // ==========================================
+                        // ==========================================
         // MÓDULO 8: GESTIÓN DE PERMISOS
         // ==========================================
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
@@ -647,18 +656,14 @@
             cargarDatos();
         });
 
-        // Abre el modal y dibuja la lista
         document.getElementById('btnManagePermisos').onclick = () => {
             actualizarListaBandeja();
             new bootstrap.Modal(document.getElementById('modalBandeja')).show();
         };
 
-        // Dibuja la lista de permisos en la bandeja
         function actualizarListaBandeja() {
             const tb = document.getElementById('listaBandeja'); 
             tb.innerHTML = '';
-            
-            // Convertimos el objeto en array para poder extraer el ID único (pId) de cada permiso
             const arrayPermisos = Object.entries(listaPermisos).map(([pId, data]) => ({ pId, ...data }));
             
             arrayPermisos.sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
@@ -675,32 +680,54 @@
             });
         }
 
-        // Lógica para editar el motivo del permiso
+        // NUEVA LÓGICA DE EDICIÓN DOBLE (TIPO Y MOTIVO)
         document.addEventListener('click', async (e) => {
             if(e.target.closest('.btn-edit-permiso')) {
                 const pId = e.target.closest('.btn-edit-permiso').dataset.pid;
                 const permiso = listaPermisos[pId];
                 if(!permiso) return;
 
-                const nuevaRazon = prompt("Editar motivo / justificación:", permiso.razon);
+                // 1. Pedir nuevo Tipo
+                let opciones = "Elige el número del nuevo tipo:\n1: Falta completa\n2: Llegaré tarde\n3: Me iré temprano\n4: Otro";
+                let nTipoNum = prompt(`Tipo actual: ${permiso.tipo}\n\n${opciones}`, "");
+                if(nTipoNum === null) return; // Canceló
                 
-                if (nuevaRazon && nuevaRazon.trim() !== "" && nuevaRazon !== permiso.razon) {
+                let nuevoTipo = permiso.tipo;
+                if(nTipoNum === "1") nuevoTipo = "Falta completa";
+                else if(nTipoNum === "2") nuevoTipo = "Llegaré tarde";
+                else if(nTipoNum === "3") nuevoTipo = "Me iré temprano";
+                else if(nTipoNum === "4") nuevoTipo = "Otro";
+                else if(nTipoNum.trim() !== "") alert("Número no válido. Se mantendrá el tipo actual.");
+
+                // 2. Pedir nuevo Motivo
+                const nuevaRazon = prompt("Editar motivo / justificación:", permiso.razon);
+                if(nuevaRazon === null) return; // Canceló
+
+                if (nuevaRazon.trim() !== "" || nuevoTipo !== permiso.tipo) {
+                    permiso.tipo = nuevoTipo;
                     permiso.razon = nuevaRazon.trim();
                     
-                    // 1. Actualizamos el motivo en la bóveda de permisos
-                    await set(ref(db, `permisos/${pId}/razon`), permiso.razon);
+                    // Actualizar en base de datos de permisos
+                    await update(ref(db, `permisos/${pId}`), { tipo: permiso.tipo, razon: permiso.razon });
                     
-                    // 2. Actualizamos la anotación en el ensayo correspondiente
+                    // Evaluar si cambia de color en la tabla de asistencia
+                    let estadoBase = "Permiso"; 
+                    if (permiso.tipo === "Llegaré tarde" || permiso.tipo === "Me iré temprano") {
+                        estadoBase = "Asistió";
+                    }
+
                     const mes = permiso.fecha.substring(0, 7);
                     const anotacion = `${permiso.tipo}: ${permiso.razon}`.substring(0, 15) + "...";
-                    await set(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}/hora`), anotacion);
                     
-                    // 3. Actualizamos la memoria temporal para que se vea el cambio sin recargar la página
+                    // Actualizar en la base de datos de ensayos
+                    await update(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}`), { estado: estadoBase, hora: anotacion });
+                    
+                    // Actualizar vista local
                     if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
+                        asistencia[permiso.fecha].detalle[permiso.miemId].estado = estadoBase;
                         asistencia[permiso.fecha].detalle[permiso.miemId].hora = anotacion;
                     }
                     
-                    // Refrescamos la bandeja y la tabla principal
                     actualizarListaBandeja();
                     renderUI();
                 }
