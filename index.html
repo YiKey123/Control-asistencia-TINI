@@ -222,7 +222,7 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-                        // ==========================================
+                                // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
@@ -316,9 +316,10 @@
                         elenco.forEach(m => {
                             const inf = ens.detalle[m.id];
                             if (inf && inf.estado !== "Pendiente") {
+                                // LÓGICA DE PUNTOS CORREGIDA:
                                 if (inf.estado === "Asistió") { stats[m.id].puntaje += 1; stats[m.id].asis++; }
-                                if (inf.estado === "Permiso") { stats[m.id].perm++; }
-                                if (inf.estado === "Faltó") { stats[m.id].puntaje -= 1; }
+                                if (inf.estado === "Permiso") { stats[m.id].perm++; } // Permiso suma 0 (no se altera puntaje)
+                                if (inf.estado === "Faltó") { stats[m.id].puntaje -= 1; } // Falta resta 1
                             }
                         });
                     }
