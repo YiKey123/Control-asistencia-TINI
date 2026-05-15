@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control asistencia elenco</title>
+    <title>Control de Asistencia - Elenco Tini</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -12,65 +12,77 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        /* MÓDULO: ESTILOS VISUALES */
-        :root { --vde: #d4edda; --ama: #fff3cd; --roj: #f8d7da; --cel: #d1ecf1; --nar: #ffe5b4; }
-        body { background-color: #f8f9fa; font-family: sans-serif; }
+        /* =========================================
+           MÓDULO DE ESTILOS CSS
+           ========================================= */
+        :root { --vde: #d4edda; --ama: #fff3cd; --roj: #f8d7da; --cel: #d1ecf1; --nar: #ffe5b4; --gris: #e9ecef;}
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        /* Transiciones de Vistas */
         .vista-seccion { display: none; }
-        .vista-activa { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .vista-activa { display: block; animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .estado-puntual { background-color: var(--vde) !important; color: #155724; }
-        .estado-atrasado { background-color: var(--nar) !important; color: #856404; }
-        .estado-permiso-tarde { background-color: var(--cel) !important; color: #0c5460; }
-        .estado-permiso { background-color: var(--ama) !important; color: #856404; }
-        .estado-falto { background-color: var(--roj) !important; color: #721c24; }
+        /* Colores de Estados de Asistencia */
+        .estado-puntual { background-color: var(--vde) !important; color: #155724; border: 1px solid #c3e6cb;}
+        .estado-atrasado { background-color: var(--nar) !important; color: #856404; border: 1px solid #ffe8a1;}
+        .estado-permiso-tarde { background-color: var(--cel) !important; color: #0c5460; border: 1px solid #bee5eb;}
+        .estado-permiso { background-color: var(--ama) !important; color: #856404; border: 1px solid #ffeeba;}
+        .estado-falto { background-color: var(--roj) !important; color: #721c24; border: 1px solid #f5c6cb;}
 
-        .table-responsive { max-height: 70vh; overflow-y: auto; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        th { position: sticky; top: 0; background: #fff !important; z-index: 10; }
-        #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 15px; overflow: hidden; }
-        #loadingScreen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        /* Tabla Admin */
+        .table-responsive { max-height: 70vh; overflow-y: auto; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        th { position: sticky; top: 0; background: #fff !important; z-index: 10; box-shadow: 0 2px 2px rgba(0,0,0,0.1); }
+        tfoot th, tfoot td { position: sticky; bottom: 0; background-color: var(--gris) !important; z-index: 10; font-weight: bold; }
+        .nombre-corto { font-size: 0.85rem; font-weight: bold; line-height: 1.2; }
         
+        /* Componentes Extra */
+        #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 15px; overflow: hidden; border: 3px solid #343a40;}
+        #loadingScreen { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .scan-success-toast { font-size: 1.2rem; font-weight: bold; padding: 15px; border-radius: 10px; background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
     </style>
 </head>
 <body>
 
     <div id="loadingScreen">
-        <div class="spinner-border text-primary mb-3"></div>
-        <h5 id="statusText">Sincronizando con asistencia-tini...</h5>
-        <div id="debugError" class="text-danger mt-3 small p-3 text-center" style="display:none; max-width: 80%;"></div>
+        <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
+        <h5 id="statusText" class="fw-bold text-dark">Conectando con la base de datos...</h5>
     </div>
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-4">
         <div class="container-fluid">
-            <span class="navbar-brand fw-bold">Control asistencia elenco</span>
+            <span class="navbar-brand fw-bold">🎭 Asistencia Elenco</span>
             <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-light active" id="btnTabPublica">Portal Integrantes</button>
-                <button class="btn btn-sm btn-outline-danger" id="btnTabAdmin">Controlar asistencias</button>
+                <button class="btn btn-sm btn-outline-light active" id="btnTabPublica">👤 Portal Público</button>
+                <button class="btn btn-sm btn-danger" id="btnTabAdmin">⚙️ Controlar Asistencias</button>
             </div>
         </div>
     </nav>
 
-    <main id="seccionPublica" class="container-fluid p-4 vista-seccion vista-activa">
+    <main id="seccionPublica" class="container-fluid px-4 vista-seccion vista-activa">
         <div class="row g-4">
             <div class="col-md-6">
                 <div class="card h-100 shadow-sm border-0">
-                    <div class="card-header bg-primary text-white fw-bold">📱 Obtener mi código QR</div>
+                    <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between">
+                        <span>📱 Obtener mi código QR</span>
+                        <button class="btn btn-sm btn-light py-0" data-bs-toggle="modal" data-bs-target="#modalAyudaPub">❓</button>
+                    </div>
                     <div class="card-body text-center">
-                        <input type="text" id="inputBuscaNombre" class="form-control mb-3" placeholder="Escribe tu nombre completo...">
-                        <div id="resultadosBusqueda" class="list-group text-start mb-3"></div>
-                        <div id="areaQR" style="display:none;">
-                            <h4 id="displayNombre" class="text-primary mb-3"></h4>
+                        <input type="text" id="inputBuscaNombre" class="form-control mb-3" placeholder="Escribe tu nombre y apellido para buscar...">
+                        <div id="resultadosBusqueda" class="list-group text-start mb-3" style="max-height: 150px; overflow-y: auto;"></div>
+                        <div id="areaQR" style="display:none;" class="p-3 border rounded bg-light">
+                            <h5 id="displayNombre" class="text-primary fw-bold mb-3"></h5>
                             <div id="qrcode" class="d-flex justify-content-center mb-3"></div>
-                            <p class="text-muted small">Toma una captura de pantalla para registrar tu llegada.</p>
+                            <p class="text-muted small mb-0">Toma una captura de pantalla a este código y muéstralo al llegar al ensayo.</p>
                         </div>
                     </div>
                 </div>
             </div>
+            
             <div class="col-md-6">
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                        <span class="fw-bold">📅 Próximos Ensayos</span>
+                        <span class="fw-bold">📅 Calendario de Ensayos</span>
                         <button class="btn btn-warning btn-sm fw-bold" id="btnPublicoPermiso">✋ Pedir Permiso</button>
                     </div>
                     <div class="card-body p-0">
@@ -81,19 +93,36 @@
         </div>
     </main>
 
-    <main id="seccionAdmin" class="container-fluid p-4 vista-seccion">
+    <main id="seccionAdmin" class="container-fluid px-4 vista-seccion">
         <div class="bg-white p-3 rounded shadow-sm mb-4">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="fw-bold small">Filtrar Fecha:</label>
-                    <input type="month" id="filtroMes" class="form-control">
+                <div class="col-12 col-md-4 d-flex gap-2">
+                    <div>
+                        <label class="fw-bold small text-muted">Filtrar Mes:</label>
+                        <input type="month" id="filtroMes" class="form-control">
+                    </div>
+                    <div class="dropdown align-self-end">
+                        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">⇅ Ordenar</button>
+                        <ul class="dropdown-menu">
+                            <li><h6 class="dropdown-header">Por Fechas</h6></li>
+                            <li><a class="dropdown-item" href="#" id="sortFDesc">⬇️ Más recientes arriba</a></li>
+                            <li><a class="dropdown-item" href="#" id="sortFAsc">⬆️ Más antiguas arriba</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Por Asistencias</h6></li>
+                            <li><a class="dropdown-item" href="#" id="sortMDesc">⬆️ Más asistencias primero</a></li>
+                            <li><a class="dropdown-item" href="#" id="sortMAsc">⬇️ Menos asistencias primero</a></li>
+                            <li><a class="dropdown-item" href="#" id="sortAz">🔤 Orden A - Z</a></li>
+                            <li><a class="dropdown-item" href="#" id="sortZa">🔤 Orden Z - A</a></li>
+                        </ul>
+                    </div>
                 </div>
-                <div class="col-md-9 d-flex justify-content-md-end gap-2 flex-wrap">
+                <div class="col-12 col-md-8 d-flex justify-content-md-end gap-2 flex-wrap">
                     <button class="btn btn-dark" id="btnManageElenco">👥 Elenco</button>
                     <button class="btn btn-primary" id="btnManageEnsayo">📅 Nuevo Ensayo</button>
                     <button class="btn btn-warning" id="btnManagePermisos">📩 Permisos</button>
-                    <button class="btn btn-success" id="btnAdminExcel">📊 Excel</button>
+                    <button class="btn btn-success" id="btnAdminExcel">📊 Exportar Excel</button>
                     <button class="btn btn-secondary" id="btnChangePass">🔑 Clave</button>
+                    <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalAyudaAdm">❓</button>
                 </div>
             </div>
         </div>
@@ -102,17 +131,63 @@
             <table class="table table-sm table-bordered text-center align-middle mb-0">
                 <thead class="table-light"><tr id="headerAdmin"><th>Día/Fecha</th></tr></thead>
                 <tbody id="cuerpoAdmin"></tbody>
+                <tfoot>
+                    <tr id="footAsisNeto"></tr>
+                    <tr id="footAsisJust"></tr>
+                    <tr id="footAtrasos"></tr>
+                </tfoot>
             </table>
         </div>
     </main>
 
     <div class="modal fade" id="modalLogin" data-bs-backdrop="static" tabindex="-1">
         <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white py-2"><h6 class="mb-0">Acceso Restringido</h6></div>
+                <div class="modal-body text-center">
+                    <p class="small text-muted">Ingrese la clave para controlar asistencias.</p>
+                    <input type="password" id="loginPass" class="form-control mb-3 text-center" placeholder="Contraseña">
+                    <button class="btn btn-danger w-100 fw-bold" id="btnDoLogin">Ingresar</button>
+                </div>
+                <div class="modal-footer py-1 border-0"><button class="btn btn-sm btn-link text-muted w-100" data-bs-dismiss="modal">Cancelar</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalPassword" tabindex="-1">
+        <div class="modal-dialog modal-sm"><div class="modal-content"><div class="modal-header bg-secondary text-white"><h5 class="modal-title">Cambiar Clave</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="text" id="nuevaPassword" class="form-control mb-3" placeholder="Nueva contraseña"><button class="btn btn-primary w-100" id="btnGuardarPassword">Guardar</button></div></div></div>
+    </div>
+
+    <div class="modal fade" id="modalAyudaPub" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-info"><h5 class="modal-title">¿Cómo usar esta página?</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><ul><li><b>Obtener QR:</b> Escribe tu nombre, selecciónalo y tómale captura. Ese es tu pase de asistencia.</li><li><b>Pedir Permiso:</b> Si vas a faltar o llegar tarde, usa este botón. El sistema avisará al administrador y te registrará automáticamente la tolerancia para ese día.</li></ul></div></div></div></div>
+    
+    <div class="modal fade" id="modalAyudaAdm" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-info"><h5 class="modal-title">Guía de Administrador</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><ul><li><b>Escáner (📷):</b> Abre la cámara. Calcula automáticamente si alguien llegó tarde comparando la hora de escaneo con la hora oficial de inicio del ensayo.</li><li><b>Edición (✏️):</b> Haz clic en el botón junto a la fecha para cambiar datos manualmente si alguien olvidó su QR.</li><li><b>Permisos (📩):</b> Aquí se guardan las razones por las que alguien pidió faltar o llegar tarde.</li></ul></div></div></div></div>
+
+    <div class="modal fade" id="modalPermiso" tabindex="-1">
+        <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-danger text-white py-2"><h6>Acceso Restringido</h6></div>
+                <div class="modal-header bg-warning"><h5 class="modal-title fw-bold">📝 Solicitud de Permiso</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body">
-                    <input type="password" id="loginPass" class="form-control mb-3" placeholder="Contraseña">
-                    <button class="btn btn-danger w-100" id="btnDoLogin">Ingresar</button>
+                    <label class="fw-bold small">1. ¿Quién eres?</label>
+                    <select id="permisoMiem" class="form-select mb-3"></select>
+                    
+                    <label class="fw-bold small">2. ¿Para qué ensayo?</label>
+                    <select id="permisoEns" class="form-select mb-3"></select>
+                    
+                    <label class="fw-bold small">3. Tipo de Permiso:</label>
+                    <select id="permisoTipo" class="form-select mb-3">
+                        <option value="Permiso tarde">Llegaré tarde (Tolerancia)</option>
+                        <option value="Permiso">No asistiré (Falta con permiso)</option>
+                    </select>
+                    
+                    <div id="divTolerancia">
+                        <label class="fw-bold small">¿Cuánto tiempo de retraso aprox?</label>
+                        <input type="text" id="permisoTolerancia" class="form-control mb-3" placeholder="Ej. 30 minutos, o llegaré a las 20:00">
+                    </div>
+
+                    <label class="fw-bold small">4. Motivo / Justificación:</label>
+                    <textarea id="permisoRazon" class="form-control mb-3" rows="2" placeholder="Explica brevemente la razón..."></textarea>
+                    
+                    <button class="btn btn-success w-100 fw-bold" id="btnDoSendPermiso">Enviar Solicitud</button>
                 </div>
             </div>
         </div>
@@ -120,11 +195,66 @@
 
     <div class="modal fade" id="modalScanner" data-bs-backdrop="static" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white"><h5>📷 Escáner de Llegada</h5><button class="btn-close btn-close-white" id="btnCloseScanner" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body text-center">
+            <div class="modal-content border-0">
+                <div class="modal-header bg-dark text-white py-2"><h6 class="mb-0">📷 Escáner de Llegadas</h6><button class="btn-close btn-close-white" id="btnCloseScanner" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body text-center bg-light">
+                    <p id="infoScanLable" class="fw-bold text-primary mb-2"></p>
                     <div id="reader"></div>
                     <div id="scanResult" class="mt-3" style="display:none;"><div class="scan-success-toast" id="scanResultText"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalCrearEnsayo" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white"><h5 class="modal-title">Programar Nuevo Ensayo</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">Al crear, todos se marcan como "Faltó". Solo configura los permisos especiales.</div>
+                    <div class="row mb-3">
+                        <div class="col-6"><label class="fw-bold small">Fecha:</label><input type="date" id="crearFecha" class="form-control"></div>
+                        <div class="col-6"><label class="fw-bold small">Hora Oficial de Inicio:</label><input type="time" id="crearHora" class="form-control" value="19:00"></div>
+                    </div>
+                    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Integrante</th><th>Permisos Iniciales</th></tr></thead><tbody id="listaCreaModal"></tbody></table></div>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary w-100" id="btnSaveNuevoEnsayo">Crear Ensayo</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEdicion" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white"><h5 class="modal-title" id="tituloEdicion">Edición Manual</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="editFecha">
+                    <div class="row mb-3"><div class="col-6"><label class="fw-bold small">Hora Oficial:</label><input type="time" id="editHoraInicio" class="form-control"></div></div>
+                    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Integrante</th><th>Estado</th><th>Hora Llegada / Razón</th></tr></thead><tbody id="listaEditModal"></tbody></table></div>
+                </div>
+                <div class="modal-footer"><button class="btn btn-warning w-100 fw-bold" id="btnSaveEdicion">Actualizar Datos</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalElenco" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white"><h5 class="modal-title">Miembros del Elenco</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="input-group mb-3"><input type="text" id="nuevoNombre" class="form-control" placeholder="Nombre completo..."><button class="btn btn-success" id="btnAddMiem">Agregar</button></div>
+                    <ul class="list-group" id="listaElencoCrud"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalBandeja" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning"><h5 class="modal-title">Bandeja de Permisos</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-0">
+                    <div class="table-responsive m-0"><table class="table table-sm table-striped m-0"><thead><tr><th>Ensayo</th><th>Integrante</th><th>Tipo</th><th>Justificación</th></tr></thead><tbody id="listaBandeja"></tbody></table></div>
                 </div>
             </div>
         </div>
@@ -134,7 +264,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // CONFIGURACIÓN PROPORCIONADA
+        // Módulo: Inicialización Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDahLtxl19fR0JTQpQvxU8MrxLdmco7_XU",
             authDomain: "asistencia-tini.firebaseapp.com",
@@ -144,121 +274,326 @@
             messagingSenderId: "1049723359333",
             appId: "1:1049723359333:web:9046ff4cff059a03dab68c"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // DATOS INICIALES (MIGRACIÓN)
-        const integrantesExcel = ["Adrian Mauro Balderrama Fernandez", "Alejandra Patricia Jemio Berrios", "Ana Camila Joicet Vallejos Rojas", "Ana Yolanda Arancibia Castro", "Andrea Nicol Gamarra Molina", "Camila Alejandra Durán Sologuren", "Diego García Veizaga", "Fabiana Andrea De La Barra Gallo", "Fabiana Belén Aduviri Chura", "Fabiana Miranda", "Fabiola Ariel Navarro Moreno", "Franco", "Gabriel Carlos Leaño Gonzales", "Gabriela Stephanie Altamirano Begazo", "Giann Kalef Ledezma Ramos", "Gustavo Alfredo Cespedes Cespedes", "Ian Fredy Gallardo Mendieta", "Karen Flores", "Liz Gloria Nuñez Miranda", "Luciana Belén Casanova Velarde", "Luciana Belén Fernández Venegas", "Mauricio Alejandro Casanova Velarde", "MICAELA ANDREA SOLIZ RIVAS", "Milton Adrian Rendon Quisbert", "Natalia Burgoa"];
-        const fechasExcel = ["2026-05-08", "2026-05-10", "2026-05-12", "2026-05-13", "2026-05-15", "2026-05-17", "2026-05-19", "2026-05-20", "2026-05-22", "2026-05-24", "2026-05-26", "2026-05-27", "2026-05-29", "2026-05-31", "2026-06-02", "2026-06-03"];
-
+        // Variables de Estado
         let elenco = [];
         let asistencia = {};
+        let listaPermisos = {};
         let passAdmin = "123456789";
+        
         let scanner = null;
-        let scanInfo = { fecha: null, hora: null };
+        let scanConfig = { fecha: null, hora: null };
+        
+        // Configuraciones de Orden
+        let sortFechas = 'desc'; // desc, asc
+        let sortMiem = 'none'; // none, pDesc, pAsc, aZ, zA
 
-        // BOOTSTRAP: SINCRONIZACIÓN INICIAL
-        async function bootstrap() {
+        // Módulo: Utilidades
+        const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
+        const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
+        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
+
+        // Módulo: Arranque Principal
+        async function init() {
             try {
-                // 1. Password
+                // Leer Contraseña
                 const pSnap = await get(child(ref(db), 'configuracion/password'));
                 if(pSnap.exists()) passAdmin = pSnap.val();
                 else await set(ref(db, 'configuracion/password'), passAdmin);
 
-                // 2. Elenco
+                // Leer Elenco
                 const eSnap = await get(child(ref(db), 'configuracion/elenco'));
-                if(eSnap.exists()) {
-                    elenco = eSnap.val();
-                } else {
-                    elenco = integrantesExcel.map(n => ({ id: 'id_' + Math.random().toString(36).substr(2, 9), nombre: n }));
-                    await set(ref(db, 'configuracion/elenco'), elenco);
-                }
+                if(eSnap.exists()) elenco = eSnap.val();
+                else elenco = []; // Si está vacía, no forzamos nada, la base ya se cargó en pasos previos.
 
-                // 3. Ensayos
-                const mSnap = await get(child(ref(db), 'ensayos/2026-05'));
-                if(!mSnap.exists()) {
-                    let batch = {};
-                    fechasExcel.forEach(f => {
-                        let det = {};
-                        elenco.forEach(m => det[m.id] = { estado: "Faltó", hora: "" });
-                        batch[f] = { fecha: f, horaInicio: "19:00", detalle: det };
-                    });
-                    await update(ref(db, 'ensayos/2026-05'), batch);
-                }
-
+                // Ocultar Cargador
                 document.getElementById('loadingScreen').style.display = 'none';
-                await loadData();
-            } catch (e) {
-                const errArea = document.getElementById('debugError');
-                errArea.style.display = 'block';
-                errArea.innerText = "Error de conexión: " + e.message;
+                
+                await cargarDatos();
+            } catch(e) {
+                document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error conectando a Firebase. Revisa conexión o reglas de la Base de Datos.</span>";
             }
         }
 
-        async function loadData() {
-            const mes = document.getElementById('filtroMes').value || "2026-05";
+        async function cargarDatos() {
+            const mes = document.getElementById('filtroMes').value || new Date().toISOString().substring(0, 7);
+            
+            // Cargar Ensayos
             const snap = await get(ref(db, `ensayos/${mes}`));
             asistencia = snap.exists() ? snap.val() : {};
+
+            // Cargar Permisos
+            const pSnap = await get(ref(db, `permisos`));
+            listaPermisos = pSnap.exists() ? pSnap.val() : {};
+
             renderUI();
         }
 
+        function obtenerEstadisticas() {
+            let stats = {};
+            let tEnsayos = Object.keys(asistencia).length;
+            elenco.forEach(m => stats[m.id] = { asis: 0, perm: 0, atrasos: 0, pctN: 0, pctJ: 0 });
+
+            if(tEnsayos > 0) {
+                Object.values(asistencia).forEach(ens => {
+                    elenco.forEach(m => {
+                        const inf = ens.detalle[m.id];
+                        if (inf && (inf.estado === "Puntual" || inf.estado === "Atrasado" || inf.estado === "Permiso tarde" || inf.estado === "Asistió")) {
+                            stats[m.id].asis++;
+                            if(inf.estado === "Atrasado" || (inf.estado==="Asistió" && inf.hora>ens.horaInicio)) stats[m.id].atrasos++;
+                        } else if (inf && inf.estado === "Permiso") stats[m.id].perm++;
+                    });
+                });
+                elenco.forEach(m => {
+                    stats[m.id].pctN = ((stats[m.id].asis / tEnsayos)*100).toFixed(0);
+                    stats[m.id].pctJ = (((stats[m.id].asis + stats[m.id].perm) / tEnsayos)*100).toFixed(0);
+                });
+            }
+            return { stats, tEnsayos };
+        }
+
+        // Módulo: Renderizado de Interfaces
         function renderUI() {
-            // Horarios Públicos
+            const { stats, tEnsayos } = obtenerEstadisticas();
+
+            // 1. VISTA PÚBLICA (Calendario)
             const pubList = document.getElementById('listaHorariosPublicos');
             pubList.innerHTML = '';
-            Object.keys(asistencia).sort().forEach(f => {
-                pubList.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">📅 ${f} <span class="badge bg-primary">19:00</span></li>`;
+            let fechasOrd = Object.keys(asistencia).sort(); // Ascendente por defecto en público
+            fechasOrd.forEach(f => {
+                const h = asistencia[f].horaInicio || "19:00";
+                pubList.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><b class="dia-semana">${obtenerDia(f)}</b> ${f}</span><span class="badge bg-primary fs-6">${h}</span></li>`;
             });
 
-            // Tabla Admin
-            const head = document.getElementById('headerAdmin');
-            head.innerHTML = '<th>Fecha</th>';
-            elenco.forEach(m => head.innerHTML += `<th><small>${m.nombre.split(' ')[0]}</small></th>`);
+            const selE = document.getElementById('permisoEns');
+            selE.innerHTML = '<option value="">-- Elige la fecha --</option>';
+            fechasOrd.forEach(f => selE.innerHTML += `<option value="${f}">${obtenerDia(f)} ${f}</option>`);
 
+            const selM = document.getElementById('permisoMiem');
+            selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
+            // Ordenamos alfabéticamente para que sea fácil buscarse
+            [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
+
+            // 2. VISTA ADMIN (Tabla Principal)
+            // Aplicar orden a integrantes
+            let elencoOrd = [...elenco];
+            if(sortMiem === 'pDesc') elencoOrd.sort((a,b) => stats[b.id].pctN - stats[a.id].pctN);
+            if(sortMiem === 'pAsc') elencoOrd.sort((a,b) => stats[a.id].pctN - stats[b.id].pctN);
+            if(sortMiem === 'aZ') elencoOrd.sort((a,b) => a.nombre.localeCompare(b.nombre));
+            if(sortMiem === 'zA') elencoOrd.sort((a,b) => b.nombre.localeCompare(a.nombre));
+
+            // Cabeceras
+            const head = document.getElementById('headerAdmin');
+            head.innerHTML = '<th class="align-middle">Día / Fecha</th>';
+            elencoOrd.forEach(m => head.innerHTML += `<th><div class="nombre-corto">${formatearNombre(m.nombre)}</div></th>`);
+
+            // Cuerpo
             const body = document.getElementById('cuerpoAdmin');
             body.innerHTML = '';
-            Object.keys(asistencia).sort().reverse().forEach(f => {
+            
+            let fAdminOrd = Object.keys(asistencia).sort();
+            if(sortFechas === 'desc') fAdminOrd.reverse();
+
+            fAdminOrd.forEach(f => {
                 const ens = asistencia[f];
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td><b>${f}</b><br><button class="btn btn-sm btn-success btn-scan" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button></td>`;
-                elenco.forEach(m => {
-                    const info = ens.detalle[m.id] || { estado: "Faltó" };
-                    const cls = "estado-" + info.estado.toLowerCase().replace(" ", "-");
-                    tr.innerHTML += `<td class="${cls}"><small>${info.estado === "Faltó" ? "✘" : "✔"}</small></td>`;
+                tr.innerHTML = `<td>
+                    <div class="d-flex flex-column align-items-center">
+                        <span class="dia-semana">${obtenerDia(f)} - ${ens.horaInicio}</span>
+                        <strong class="mb-1">${f}</strong>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-dark btn-edi" data-fecha="${f}">✏️</button>
+                            <button class="btn btn-sm btn-success btn-scan" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
+                        </div>
+                    </div>
+                </td>`;
+                
+                elencoOrd.forEach(m => {
+                    const info = ens.detalle[m.id] || { estado: "Faltó", hora: "" };
+                    const td = document.createElement('td');
+                    if (info.estado === "Puntual" || (info.estado === "Asistió" && info.hora <= ens.horaInicio)) { td.className="estado-puntual"; td.innerHTML=`✔ Puntual<br><small>${info.hora}</small>`; }
+                    else if (info.estado === "Atrasado" || (info.estado === "Asistió" && info.hora > ens.horaInicio)) { td.className="estado-atrasado"; td.innerHTML=`⚠️ Atraso<br><small>${info.hora}</small>`; }
+                    else if (info.estado === "Permiso tarde") { td.className="estado-permiso-tarde"; td.innerHTML=`🕒 P. Tarde<br><small class="text-truncate d-inline-block" style="max-width:70px;">${info.hora}</small>`; }
+                    else if (info.estado === "Permiso") { td.className="estado-permiso"; td.innerHTML=`P. Falta<br><small class="text-truncate d-inline-block" style="max-width:70px;">${info.hora}</small>`; }
+                    else { td.className="estado-falto"; td.textContent="✘"; }
+                    tr.appendChild(td);
                 });
                 body.appendChild(tr);
             });
+
+            // Footer
+            if(tEnsayos > 0) {
+                const fN = document.getElementById('footAsisNeto'); fN.innerHTML = '<td>% Asistencias</td>';
+                const fJ = document.getElementById('footAsisJust'); fJ.innerHTML = '<td>% (+ Permisos)</td>';
+                const fA = document.getElementById('footAtrasos'); fA.innerHTML = '<td>🔴 Atrasos Injusti.</td>';
+                
+                elencoOrd.forEach(m => {
+                    fN.innerHTML += `<td class="text-success">${stats[m.id].pctN}%</td>`;
+                    fJ.innerHTML += `<td class="text-warning">${stats[m.id].pctJ}%</td>`;
+                    fA.innerHTML += `<td class="text-danger">${stats[m.id].atrasos}</td>`;
+                });
+            }
         }
 
-        // BUSCADOR QR
+        // Módulo: Buscador QR
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             const res = document.getElementById('resultadosBusqueda');
-            res.innerHTML = '';
+            res.innerHTML = ''; document.getElementById('areaQR').style.display = 'none';
             if(val.length < 2) return;
+            
             elenco.filter(m => m.nombre.toLowerCase().includes(val)).slice(0, 5).forEach(m => {
-                const b = document.createElement('button');
-                b.className = "list-group-item list-group-item-action";
-                b.innerText = m.nombre;
-                b.onclick = () => {
+                const btn = document.createElement('button');
+                btn.className = "list-group-item list-group-item-action text-primary fw-bold";
+                btn.innerText = m.nombre;
+                btn.onclick = () => {
                     document.getElementById('displayNombre').innerText = m.nombre;
-                    const qrArea = document.getElementById('qrcode');
-                    qrArea.innerHTML = '';
-                    new QRCode(qrArea, { text: m.id, width: 200, height: 200 });
+                    const qr = document.getElementById('qrcode'); qr.innerHTML = '';
+                    new QRCode(qr, { text: m.id, width: 200, height: 200 });
                     document.getElementById('areaQR').style.display = 'block';
-                    res.innerHTML = '';
-                    document.getElementById('inputBuscaNombre').value = m.nombre;
+                    res.innerHTML = ''; document.getElementById('inputBuscaNombre').value = m.nombre;
                 };
-                res.appendChild(b);
+                res.appendChild(btn);
             });
         });
 
-        // ESCÁNER
+        // Módulo: Permisos Públicos
+        document.getElementById('permisoTipo').addEventListener('change', (e) => {
+            document.getElementById('divTolerancia').style.display = e.target.value === "Permiso tarde" ? "block" : "none";
+        });
+        document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
+            const id = document.getElementById('permisoMiem').value;
+            const fecha = document.getElementById('permisoEns').value;
+            const tipo = document.getElementById('permisoTipo').value;
+            const tol = document.getElementById('permisoTolerancia').value;
+            const razon = document.getElementById('permisoRazon').value;
+
+            if(!id || !fecha || !razon) return alert("Completa todos los campos obligatorios.");
+
+            // Guardar en Bandeja
+            const pId = 'p_' + Date.now();
+            await set(ref(db, `permisos/${pId}`), { miemId: id, fecha, tipo, tolerancia: tol, razon, enviada: new Date().toISOString() });
+
+            // Actualizar ensayo en vivo
+            const mes = fecha.substring(0, 7);
+            const anotacion = tipo === "Permiso tarde" ? tol : razon.substring(0, 15)+"...";
+            await update(ref(db, `ensayos/${mes}/${fecha}/detalle/${id}`), { estado: tipo, hora: anotacion });
+
+            alert("Permiso registrado correctamente.");
+            bootstrap.Modal.getInstance(document.getElementById('modalPermiso')).hide();
+            cargarDatos();
+        });
+
+        // Módulo: Operaciones de Admin (Crear/Editar Ensayo, Elenco, Bandeja)
+        document.getElementById('btnManageEnsayo').onclick = () => {
+            const tb = document.getElementById('listaCreaModal'); tb.innerHTML = '';
+            elenco.forEach(m => {
+                tb.innerHTML += `<tr><td><small>${m.nombre}</small></td><td>
+                    <select class="form-select form-select-sm sel-crea" data-id="${m.id}">
+                        <option value="Faltó">-- Faltó (Base) --</option>
+                        <option value="Permiso tarde">Tiene permiso tarde</option>
+                        <option value="Permiso">Tiene permiso falta</option>
+                    </select></td></tr>`;
+            });
+            new bootstrap.Modal(document.getElementById('modalCrearEnsayo')).show();
+        };
+
+        document.getElementById('btnSaveNuevoEnsayo').onclick = async () => {
+            const f = document.getElementById('crearFecha').value;
+            const h = document.getElementById('crearHora').value;
+            if(!f) return;
+            let det = {};
+            document.querySelectorAll('.sel-crea').forEach(s => det[s.getAttribute('data-id')] = { estado: s.value, hora: "" });
+            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { fecha: f, horaInicio: h, detalle: det });
+            bootstrap.Modal.getInstance(document.getElementById('modalCrearEnsayo')).hide();
+            cargarDatos();
+        };
+
+        document.addEventListener('click', (e) => {
+            if(e.target.closest('.btn-edi')) {
+                const f = e.target.closest('.btn-edi').getAttribute('data-fecha');
+                const ens = asistencia[f];
+                document.getElementById('editFecha').value = f;
+                document.getElementById('editHoraInicio').value = ens.horaInicio;
+                
+                const tb = document.getElementById('listaEditModal'); tb.innerHTML = '';
+                elenco.forEach(m => {
+                    const inf = ens.detalle[m.id] || {estado:"Faltó", hora:""};
+                    tb.innerHTML += `<tr><td><small>${m.nombre}</small></td>
+                        <td><select class="form-select form-select-sm sel-edi" data-id="${m.id}">
+                            <option value="Puntual" ${inf.estado==="Puntual"?"selected":""}>Puntual</option>
+                            <option value="Atrasado" ${inf.estado==="Atrasado"?"selected":""}>Atrasado</option>
+                            <option value="Permiso tarde" ${inf.estado==="Permiso tarde"?"selected":""}>P. Tarde</option>
+                            <option value="Permiso" ${inf.estado==="Permiso"?"selected":""}>P. Falta</option>
+                            <option value="Faltó" ${inf.estado==="Faltó"?"selected":""}>Faltó</option>
+                        </select></td>
+                        <td><input type="text" class="form-control form-control-sm in-edi" data-id="${m.id}" value="${inf.hora}"></td></tr>`;
+                });
+                new bootstrap.Modal(document.getElementById('modalEdicion')).show();
+            }
+        });
+
+        document.getElementById('btnSaveEdicion').onclick = async () => {
+            const f = document.getElementById('editFecha').value;
+            const h = document.getElementById('editHoraInicio').value;
+            let det = {};
+            document.querySelectorAll('.sel-edi').forEach(s => {
+                const id = s.getAttribute('data-id');
+                const hr = document.querySelector(`.in-edi[data-id="${id}"]`).value;
+                det[id] = { estado: s.value, hora: hr };
+            });
+            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { horaInicio: h, detalle: det });
+            bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide();
+            cargarDatos();
+        };
+
+        // Elenco CRUD
+        document.getElementById('btnManageElenco').onclick = () => {
+            const ul = document.getElementById('listaElencoCrud'); ul.innerHTML = '';
+            elenco.forEach((m, i) => {
+                ul.innerHTML += `<li class="list-group-item d-flex justify-content-between"><span>${m.nombre}</span>
+                <div><button class="btn btn-sm btn-warning btn-edit-m" data-i="${i}">✏️</button> <button class="btn btn-sm btn-danger btn-del-m" data-i="${i}">×</button></div></li>`;
+            });
+            new bootstrap.Modal(document.getElementById('modalElenco')).show();
+        };
+        document.getElementById('btnAddMiem').onclick = async () => {
+            const n = document.getElementById('nuevoNombre').value.trim();
+            if(n) { elenco.push({id: generarId(), nombre: n}); await set(ref(db, 'configuracion/elenco'), elenco); document.getElementById('btnManageElenco').click(); }
+        };
+        document.addEventListener('click', async (e) => {
+            if(e.target.closest('.btn-del-m')){ elenco.splice(e.target.closest('.btn-del-m').dataset.i, 1); await set(ref(db, 'configuracion/elenco'), elenco); document.getElementById('btnManageElenco').click(); }
+            if(e.target.closest('.btn-edit-m')){
+                const i = e.target.closest('.btn-edit-m').dataset.i; const nn = prompt("Nombre:", elenco[i].nombre);
+                if(nn) { elenco[i].nombre = nn.trim(); await set(ref(db, 'configuracion/elenco'), elenco); document.getElementById('btnManageElenco').click(); }
+            }
+        });
+
+        // Bandeja Permisos Admin
+        document.getElementById('btnManagePermisos').onclick = () => {
+            const tb = document.getElementById('listaBandeja'); tb.innerHTML = '';
+            Object.values(listaPermisos).sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
+                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
+                tb.innerHTML += `<tr><td>${p.fecha}</td><td>${nom}</td><td><span class="badge bg-${p.tipo==="Permiso"?"warning":"info text-dark"}">${p.tipo}</span><br><small>${p.tolerancia||''}</small></td><td><small>${p.razon}</small></td></tr>`;
+            });
+            new bootstrap.Modal(document.getElementById('modalBandeja')).show();
+        };
+
+        // Clave Admin
+        document.getElementById('btnChangePass').onclick = () => new bootstrap.Modal(document.getElementById('modalPassword')).show();
+        document.getElementById('btnGuardarPassword').onclick = async () => {
+            const np = document.getElementById('nuevaPassword').value;
+            if(np) { passAdmin = np; await set(ref(db, 'configuracion/password'), passAdmin); alert("Clave actualizada."); bootstrap.Modal.getInstance(document.getElementById('modalPassword')).hide(); }
+        };
+
+        // Módulo: Escáner de QRs
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-scan')) {
                 const b = e.target.closest('.btn-scan');
-                scanInfo = { fecha: b.dataset.fecha, hora: b.dataset.hora };
+                scanConfig = { fecha: b.dataset.fecha, hora: b.dataset.hora };
+                document.getElementById('infoScanLable').innerText = `Asistencia: ${scanConfig.fecha} (Hora Ofic: ${scanConfig.hora})`;
                 new bootstrap.Modal(document.getElementById('modalScanner')).show();
                 scanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: 250 });
                 scanner.render(onScanSuccess);
@@ -266,46 +601,93 @@
         });
 
         async function onScanSuccess(id) {
-            const m = elenco.find(mi => mi.id === id);
-            const resBox = document.getElementById('scanResult');
-            const resText = document.getElementById('scanResultText');
             if(scanner) scanner.pause();
+            const miem = elenco.find(m => m.id === id);
+            const res = document.getElementById('scanResult');
+            const txt = document.getElementById('scanResultText');
+            res.style.display = 'block';
 
-            if(!m) {
-                resBox.style.display = 'block'; resText.innerText = "❌ QR Inválido";
-                setTimeout(() => { resBox.style.display='none'; scanner.resume(); }, 2000);
-                return;
-            }
+            if(!miem) { txt.className="scan-success-toast bg-danger text-white border-danger"; txt.innerHTML = "❌ QR Inválido"; setTimeout(()=> { res.style.display='none'; if(scanner) scanner.resume(); }, 2000); return; }
 
             const now = new Date();
-            const hr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-            const est = hr > scanInfo.hora ? "Atrasado" : "Puntual";
-
-            await update(ref(db, `ensayos/${scanInfo.fecha.substring(0,7)}/${scanInfo.fecha}/detalle/${id}`), { estado: est, hora: hr });
-            resBox.style.display = 'block';
-            resText.innerHTML = `✅ <b>${m.nombre}</b><br>${est} (${hr})`;
+            const hrReal = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
-            setTimeout(() => { resBox.style.display='none'; if(scanner) scanner.resume(); }, 1500);
+            const prev = asistencia[scanConfig.fecha].detalle[id]?.estado || "Faltó";
+            let fEst = "Puntual";
+            if(hrReal > scanConfig.hora) fEst = (prev === "Permiso tarde") ? "Permiso tarde" : "Atrasado";
+
+            try {
+                await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: fEst, hora: hrReal });
+                asistencia[scanConfig.fecha].detalle[id] = { estado: fEst, hora: hrReal }; // Auto-update local
+                txt.className="scan-success-toast bg-success text-white"; txt.innerHTML = `✅ <b>${miem.nombre}</b><br><small>${fEst} (${hrReal})</small>`;
+            } catch (er) { txt.className="scan-success-toast bg-danger text-white border-danger"; txt.innerHTML = "Error conexión"; }
+
+            setTimeout(() => { res.style.display='none'; if(scanner) scanner.resume(); }, 1500);
         }
+        document.getElementById('btnCloseScanner').onclick = () => { if(scanner) scanner.clear(); renderUI(); };
 
-        document.getElementById('btnCloseScanner').onclick = () => { if(scanner) scanner.clear(); };
+        // Filtros y Ordenamiento Admin
+        document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
+        document.getElementById('filtroMes').onchange = cargarDatos;
+        
+        document.getElementById('sortFDesc').onclick = (e)=>{e.preventDefault(); sortFechas='desc'; renderUI();};
+        document.getElementById('sortFAsc').onclick = (e)=>{e.preventDefault(); sortFechas='asc'; renderUI();};
+        document.getElementById('sortMDesc').onclick = (e)=>{e.preventDefault(); sortMiem='pDesc'; renderUI();};
+        document.getElementById('sortMAsc').onclick = (e)=>{e.preventDefault(); sortMiem='pAsc'; renderUI();};
+        document.getElementById('sortAz').onclick = (e)=>{e.preventDefault(); sortMiem='aZ'; renderUI();};
+        document.getElementById('sortZa').onclick = (e)=>{e.preventDefault(); sortMiem='zA'; renderUI();};
 
-        // TABS Y LOGIN
+        // Exportar Excel
+        document.getElementById('btnAdminExcel').onclick = async () => {
+            const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Reporte');
+            ws.addRow(['Fecha', 'Hora Inicio', ...elenco.map(m => m.nombre)]);
+            
+            let fs = Object.keys(asistencia).sort(); if(sortFechas==='desc') fs.reverse();
+            fs.forEach(f => {
+                const ens = asistencia[f]; const row = [`${obtenerDia(f)} ${f}`, ens.horaInicio];
+                elenco.forEach(m => {
+                    const i = ens.detalle[m.id]||{estado:"Faltó",hora:""};
+                    if(i.estado==="Puntual"||(i.estado==="Asistió"&&i.hora<=ens.horaInicio)) row.push(`Puntual (${i.hora})`);
+                    else if(i.estado==="Atrasado"||(i.estado==="Asistió"&&i.hora>ens.horaInicio)) row.push(`Atrasado (${i.hora})`);
+                    else if(i.estado==="Permiso tarde") row.push(`Permiso Tarde (${i.hora})`);
+                    else if(i.estado==="Permiso") row.push("Permiso"); else row.push("Faltó");
+                });
+                const r = ws.addRow(row);
+                r.eachCell((c, col) => { if(col>2 && c.value) {
+                    let v = c.value.toString();
+                    if(v.includes("Puntual")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}};
+                    else if(v.includes("Atrasado")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFCC99'}};
+                    else if(v.includes("Permiso Tarde")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFB8CCE4'}};
+                    else if(v.includes("Permiso")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFEB9C'}};
+                    else if(v.includes("Faltó")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC7CE'}};
+                }});
+            });
+            const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_Tini_${document.getElementById('filtroMes').value}.xlsx`);
+        };
+
+        // Módulo: Control de Navegación de Pestañas y Login
         document.getElementById('btnTabPublica').onclick = () => {
             document.getElementById('seccionPublica').classList.add('vista-activa');
             document.getElementById('seccionAdmin').classList.remove('vista-activa');
+            document.getElementById('btnTabPublica').classList.add('active', 'btn-light');
+            document.getElementById('btnTabPublica').classList.remove('btn-outline-light');
+            document.getElementById('btnTabAdmin').classList.remove('active');
         };
         document.getElementById('btnTabAdmin').onclick = () => new bootstrap.Modal(document.getElementById('modalLogin')).show();
         document.getElementById('btnDoLogin').onclick = () => {
             if(document.getElementById('loginPass').value === passAdmin) {
                 bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide();
+                document.getElementById('loginPass').value = '';
                 document.getElementById('seccionAdmin').classList.add('vista-activa');
                 document.getElementById('seccionPublica').classList.remove('vista-activa');
-            }
+                document.getElementById('btnTabAdmin').classList.add('active');
+                document.getElementById('btnTabPublica').classList.remove('active', 'btn-light');
+                document.getElementById('btnTabPublica').classList.add('btn-outline-light');
+            } else alert("Contraseña incorrecta");
         };
 
-        document.getElementById('filtroMes').value = "2026-05";
-        bootstrap();
+        // Arrancar Aplicación
+        init();
     </script>
 </body>
 </html>
