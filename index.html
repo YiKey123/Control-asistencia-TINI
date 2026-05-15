@@ -232,17 +232,22 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
         
-        const formatearNombre = (full) => {
-            const partes = full.trim().split(' ');
+        // Nueva lógica: Ahora recibe al miembro completo (m)
+        const formatearNombre = (m) => {
+            if (m.apodo && m.apodo.length > 0) {
+                return m.apodo.join('<br>');
+            }
+            // Regla de respaldo (1er y 3er nombre) si no hay apodo configurado
+            const partes = m.nombre.trim().split(' ');
             if (partes.length === 1) return partes[0];
             if (partes.length === 2) return `${partes[0]}<br>${partes[1]}`;
             if (partes.length >= 3) return `${partes[0]}<br>${partes[2]}`;
-            return full;
+            return m.nombre;
         };
 
         const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
@@ -292,14 +297,9 @@
                     await set(ref(db, 'configuracion/elenco'), elenco);
                 }
 
-                if (elenco.length > 0) {
-                    document.getElementById('statusText').innerText = "Cargando :b";
-                    await subirHistorial();
-                }
-
                 document.getElementById('loadingScreen').style.display = 'none';
                 await cargarDatos();
-            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión a la base de datos.</span>"; }
+            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión.</span>"; }
         }
 
         async function cargarDatos() {
@@ -344,7 +344,7 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
-                                // ==========================================
+                // ==========================================
         // MÓDULO 5: RENDERIZADO DE INTERFAZ
         // ==========================================
         function renderUI() {
@@ -374,7 +374,7 @@
 
             elencoOrd.forEach(m => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<th class="text-start align-middle bg-white nombre-corto">${formatearNombre(m.nombre)}</th>`;
+                tr.innerHTML = `<th class="text-start align-middle bg-white nombre-corto">${formatearNombre(m)}</th>`;
                 
                 fechasTodas.forEach(f => {
                     const ens = asistencia[f];
@@ -773,9 +773,11 @@
             }
         });
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 9: CRUD ELENCO Y EXPORTACIÓN EXCEL
         // ==========================================
+        let miemEditandoId = null;
+
         document.getElementById('btnManageElenco').onclick = () => {
             elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
             actualizarListaVisualElenco();
@@ -785,38 +787,71 @@
         document.getElementById('btnAddMiem').onclick = async () => {
             const n = document.getElementById('nuevoNombre').value.trim();
             if(n) {
-                const nuevoMiem = { id: generarId(), nombre: n };
+                const nuevoMiem = { id: generarId(), nombre: n, apodo: [] };
                 elenco.push(nuevoMiem);
                 elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
-                try {
-                    await set(ref(db, 'configuracion/elenco'), elenco);
-                    document.getElementById('nuevoNombre').value = '';
-                    actualizarListaVisualElenco(); 
-                    alert("Miembro agregado. Al terminar de editar, recarga la página (F5) para actualizar las tablas.");
-                } catch (e) { console.error("Error al agregar:", e); }
+                await set(ref(db, 'configuracion/elenco'), elenco);
+                document.getElementById('nuevoNombre').value = '';
+                actualizarListaVisualElenco(); 
             }
         };
 
-        document.addEventListener('click', async (e) => {
+        document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-del-m')){
                 const i = e.target.closest('.btn-del-m').dataset.i;
-                if(confirm(`⚠️ ADVERTENCIA ⚠️\n¿Seguro que deseas eliminar a ${elenco[i].nombre}?\nSi lo haces, se perderán todas sus asistencias registradas y su código QR dejará de funcionar.`)) {
+                if(confirm(`⚠️ ADVERTENCIA ⚠️\n¿Seguro que deseas eliminar a ${elenco[i].nombre}?\nSe perderán sus asistencias y su QR.`)) {
                     elenco.splice(i, 1);
-                    await set(ref(db, 'configuracion/elenco'), elenco);
+                    set(ref(db, 'configuracion/elenco'), elenco);
                     actualizarListaVisualElenco();
                 }
             }
+            // NUEVA LÓGICA DE EDICIÓN CON MODAL Y CHECKBOXES
             if(e.target.closest('.btn-edit-m')){
                 const i = e.target.closest('.btn-edit-m').dataset.i;
-                const nn = prompt("Editar nombre:", elenco[i].nombre);
-                if(nn && nn.trim() !== "") {
-                    elenco[i].nombre = nn.trim();
-                    elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
-                    await set(ref(db, 'configuracion/elenco'), elenco);
-                    actualizarListaVisualElenco();
-                }
+                const m = elenco[i];
+                miemEditandoId = m.id;
+
+                document.getElementById('editMiemNombre').value = m.nombre;
+                const container = document.getElementById('contenedorCheckboxesApodo');
+                container.innerHTML = '';
+
+                // Separar nombres y crear checkboxes
+                const partes = m.nombre.trim().split(/\s+/);
+                partes.forEach((p, idx) => {
+                    const checked = (!m.apodo || m.apodo.length === 0 || m.apodo.includes(p)) ? 'checked' : '';
+                    container.innerHTML += `
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input check-apodo" type="checkbox" value="${p}" id="chk_${idx}" ${checked}>
+                            <label class="form-check-label" for="chk_${idx}">${p}</label>
+                        </div>`;
+                });
+
+                new bootstrap.Modal(document.getElementById('modalEditarMiembro')).show();
             }
         });
+
+        // Guardar cambios del integrante (Nombre y Apodo)
+        document.getElementById('btnSaveEditMiem').onclick = async () => {
+            const miem = elenco.find(m => m.id === miemEditandoId);
+            if(!miem) return;
+
+            miem.nombre = document.getElementById('editMiemNombre').value.trim();
+            
+            // Recoger los nombres tiqueados
+            const seleccionados = [];
+            document.querySelectorAll('.check-apodo:checked').forEach(chk => {
+                seleccionados.push(chk.value);
+            });
+            miem.apodo = seleccionados;
+
+            elenco.sort((a,b) => a.nombre.localeCompare(b.nombre));
+            await set(ref(db, 'configuracion/elenco'), elenco);
+            
+            bootstrap.Modal.getInstance(document.getElementById('modalEditarMiembro')).hide();
+            actualizarListaVisualElenco();
+            renderUI();
+            alert("Cambios guardados. El apodo se reflejará en la tabla.");
+        };
 
         function actualizarListaVisualElenco() {
             const ul = document.getElementById('listaElencoCrud'); ul.innerHTML = '';
@@ -827,11 +862,9 @@
 
         document.getElementById('btnAdminExcel').onclick = async () => {
             const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Reporte');
-            let fs = Object.keys(asistencia).sort(); if(sortFechas==='desc') fs.reverse();
-            
+            let fs = Object.keys(asistencia).sort(); if(sortMiem==='desc') fs.reverse();
             const headerRow = ['Integrante', ...fs.map(f => `${obtenerDia(f)} ${f}`)];
             ws.addRow(headerRow);
-            
             elenco.forEach(m => {
                 const row = [m.nombre];
                 fs.forEach(f => {
@@ -850,7 +883,7 @@
                     else if(v.includes("-")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}};
                 }});
             });
-            const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_Elenco_${document.getElementById('filtroMes').value}.xlsx`);
+            const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_TINI_${document.getElementById('filtroMes').value}.xlsx`);
         };
 
         // ==========================================
