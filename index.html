@@ -24,14 +24,20 @@
         .estado-permiso { background-color: var(--ama) !important; color: #856404; border: 1px solid #ffeeba;}
         .estado-falto { background-color: var(--roj) !important; color: #721c24; border: 1px solid #f5c6cb;}
 
-        .table-responsive { max-height: 70vh; overflow-y: auto; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        th { position: sticky; top: 0; background: #fff !important; z-index: 10; box-shadow: 0 2px 2px rgba(0,0,0,0.1); }
-        tfoot th, tfoot td { position: sticky; bottom: 0; background-color: var(--gris) !important; z-index: 10; font-weight: bold; }
+        .table-responsive { max-height: 75vh; overflow: auto; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        /* Fijar primera columna (Nombres) y primera fila (Fechas) */
+        th, thead td { position: sticky; top: 0; background: #fff !important; z-index: 10; box-shadow: 0 2px 2px rgba(0,0,0,0.1); }
+        tbody th { position: sticky; left: 0; background: #fff !important; z-index: 5; box-shadow: 2px 0 2px rgba(0,0,0,0.1); }
+        thead th:first-child { z-index: 15; left: 0; }
+        
         .nombre-corto { font-size: 0.85rem; font-weight: bold; line-height: 1.2; }
         
         #reader { width: 100%; max-width: 400px; margin: auto; border-radius: 15px; overflow: hidden; border: 3px solid #343a40;}
         #loadingScreen { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .scan-success-toast { font-size: 1.2rem; font-weight: bold; padding: 15px; border-radius: 10px; background: #d4edda; color: #155724; border: 2px solid #c3e6cb; }
+        
+        /* Estilo Notificación QR Flotante */
+        #scanResult { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1050; width: 85%; }
+        .scan-success-toast { font-size: 1.3rem; font-weight: bold; padding: 20px; border-radius: 15px; background: rgba(212, 237, 218, 0.95); color: #155724; border: 3px solid #c3e6cb; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
@@ -65,9 +71,7 @@
                         <div id="areaQR" style="display:none;" class="p-3 border rounded bg-light">
                             <h5 id="displayNombre" class="text-primary fw-bold mb-3"></h5>
                             <div id="qrcode" class="d-flex justify-content-center mb-3"></div>
-                            
                             <button id="btnDescargarQR" class="btn btn-success btn-sm w-100 mb-2 fw-bold">📥 Descargar Imagen QR</button>
-                            
                             <p class="text-muted small mb-0">Descarga esta imagen y muéstrala al llegar al ensayo.</p>
                         </div>
                     </div>
@@ -97,15 +101,13 @@
                         <input type="month" id="filtroMes" class="form-control">
                     </div>
                     <div class="dropdown align-self-end">
-                        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">⇅ Ordenar</button>
+                        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">⇅ Ordenar Miembros</button>
                         <ul class="dropdown-menu">
-                            <li><h6 class="dropdown-header">Por Fechas</h6></li>
-                            <li><a class="dropdown-item" href="#" id="sortFDesc">⬇️ Más recientes arriba</a></li>
-                            <li><a class="dropdown-item" href="#" id="sortFAsc">⬆️ Más antiguas arriba</a></li>
-                            <li><hr class="dropdown-divider"></li>
                             <li><h6 class="dropdown-header">Por Asistencias</h6></li>
                             <li><a class="dropdown-item" href="#" id="sortMDesc">⬆️ Más asistencias primero</a></li>
                             <li><a class="dropdown-item" href="#" id="sortMAsc">⬇️ Menos asistencias primero</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Alfabético</h6></li>
                             <li><a class="dropdown-item" href="#" id="sortAz">🔤 Orden A - Z</a></li>
                             <li><a class="dropdown-item" href="#" id="sortZa">🔤 Orden Z - A</a></li>
                         </ul>
@@ -123,15 +125,9 @@
         </div>
 
         <div class="table-responsive bg-white">
-            <table class="table table-sm table-bordered text-center align-middle mb-0">
-                <thead class="table-light"><tr id="headerAdmin"><th>Día/Fecha</th></tr></thead>
+            <table class="table table-sm table-bordered text-center align-middle mb-0" style="white-space: nowrap;">
+                <thead class="table-light"><tr id="headerAdmin"></tr></thead>
                 <tbody id="cuerpoAdmin"></tbody>
-                <tfoot>
-                    <tr id="footAsisNeto"></tr>
-                    <tr id="footAsisJust"></tr>
-                    <tr id="footAtrasos"></tr>
-                    <tr id="footPuntaje"></tr>
-                </tfoot>
             </table>
         </div>
     </main>
@@ -139,29 +135,11 @@
     <div class="modal fade" id="modalLogin" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog modal-sm modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header bg-danger text-white py-2"><h6 class="mb-0">Acceso Restringido</h6></div><div class="modal-body text-center"><p class="small text-muted">Ingrese la clave.</p><input type="password" id="loginPass" class="form-control mb-3 text-center" placeholder="Contraseña"><button class="btn btn-danger w-100 fw-bold" id="btnDoLogin">Ingresar</button></div><div class="modal-footer py-1 border-0"><button class="btn btn-sm btn-link text-muted w-100" data-bs-dismiss="modal">Cancelar</button></div></div></div></div>
     <div class="modal fade" id="modalPassword" tabindex="-1"><div class="modal-dialog modal-sm"><div class="modal-content"><div class="modal-header bg-secondary text-white"><h5 class="modal-title">Cambiar Clave</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="text" id="nuevaPassword" class="form-control mb-3" placeholder="Nueva contraseña"><button class="btn btn-primary w-100" id="btnGuardarPassword">Guardar</button></div></div></div></div>
     <div class="modal fade" id="modalAyudaPub" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-info"><h5 class="modal-title">¿Cómo usar esta página?</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><ul><li><b>Obtener QR:</b> Escribe tu nombre, descárgalo y úsalo para registrar tu asistencia.</li><li><b>Pedir Permiso:</b> Úsalo para justificar faltas o atrasos.</li></ul></div></div></div></div>
-    <div class="modal fade" id="modalAyudaAdm" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-info"><h5 class="modal-title">Guía Admin</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><ul><li><b>Escáner (📷):</b> Registra llegadas automáticamente.</li><li><b>Edición (✏️):</b> Cambios manuales.</li></ul></div></div></div></div>
+    <div class="modal fade" id="modalAyudaAdm" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-info"><h5 class="modal-title">Guía Admin</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><ul><li><b>Escáner (📷):</b> Registra llegadas automáticamente activando la cámara trasera.</li><li><b>Edición (✏️):</b> Cambios manuales de estados de asistencia.</li></ul></div></div></div></div>
 
-    <div class="modal fade" id="modalPermiso" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning"><h5 class="modal-title fw-bold">📝 Solicitud de Permiso</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body">
-                    <label class="fw-bold small">1. ¿Quién eres?</label><select id="permisoMiem" class="form-select mb-3"></select>
-                    <label class="fw-bold small">2. ¿Para qué ensayo?</label><select id="permisoEns" class="form-select mb-3"></select>
-                    <label class="fw-bold small">3. Tipo de Permiso:</label>
-                    <select id="permisoTipo" class="form-select mb-3">
-                        <option value="Permiso tarde">Llegaré tarde (Tolerancia)</option>
-                        <option value="Permiso">No asistiré (Falta con permiso)</option>
-                    </select>
-                    <div id="divTolerancia"><label class="fw-bold small">¿Cuánto tiempo de retraso aprox?</label><input type="text" id="permisoTolerancia" class="form-control mb-3" placeholder="Ej. 30 minutos"></div>
-                    <label class="fw-bold small">4. Motivo / Justificación:</label><textarea id="permisoRazon" class="form-control mb-3" rows="2" placeholder="Explica la razón..."></textarea>
-                    <button class="btn btn-success w-100 fw-bold" id="btnDoSendPermiso">Enviar Solicitud</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="modal fade" id="modalPermiso" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title fw-bold">📝 Solicitud de Permiso</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><label class="fw-bold small">1. ¿Quién eres?</label><select id="permisoMiem" class="form-select mb-3"></select><label class="fw-bold small">2. ¿Para qué ensayo?</label><select id="permisoEns" class="form-select mb-3"></select><label class="fw-bold small">3. Tipo de Permiso:</label><select id="permisoTipo" class="form-select mb-3"><option value="Permiso tarde">Llegaré tarde (Tolerancia)</option><option value="Permiso">No asistiré (Falta con permiso)</option></select><div id="divTolerancia"><label class="fw-bold small">¿Cuánto tiempo de retraso aprox?</label><input type="text" id="permisoTolerancia" class="form-control mb-3" placeholder="Ej. 30 minutos"></div><label class="fw-bold small">4. Motivo / Justificación:</label><textarea id="permisoRazon" class="form-control mb-3" rows="2" placeholder="Explica la razón..."></textarea><button class="btn btn-success w-100 fw-bold" id="btnDoSendPermiso">Enviar Solicitud</button></div></div></div></div>
 
-    <div class="modal fade" id="modalScanner" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog"><div class="modal-content border-0"><div class="modal-header bg-dark text-white py-2"><h6 class="mb-0">📷 Escáner de Llegadas</h6><button class="btn-close btn-close-white" id="btnCloseScanner" data-bs-dismiss="modal"></button></div><div class="modal-body text-center bg-light"><p id="infoScanLable" class="fw-bold text-primary mb-2"></p><div id="reader"></div><div id="scanResult" class="mt-3" style="display:none;"><div class="scan-success-toast" id="scanResultText"></div></div></div></div></div></div>
+    <div class="modal fade" id="modalScanner" data-bs-backdrop="static" tabindex="-1"><div class="modal-dialog"><div class="modal-content border-0 bg-dark"><div class="modal-header bg-dark text-white border-secondary py-2"><h6 class="mb-0">📷 Escáner de Llegadas</h6><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body text-center p-0 position-relative"><div class="bg-primary text-white py-2"><h5 id="infoScanLable" class="fw-bold mb-0"></h5></div><div id="reader" style="width: 100%; min-height: 300px;"></div><div id="scanResult" style="display:none;"><div class="scan-success-toast" id="scanResultText"></div></div></div></div></div></div>
     
     <div class="modal fade" id="modalCrearEnsayo" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary text-white"><h5 class="modal-title">Programar Nuevo Ensayo</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="alert alert-info py-2 small">Al crear, todos quedan Pendientes.</div><div class="row mb-3"><div class="col-4"><label class="fw-bold small">Fecha:</label><input type="date" id="crearFecha" class="form-control"></div><div class="col-4"><label class="fw-bold small">Hora Inicio:</label><input type="time" id="crearHora" class="form-control" value="19:00"></div><div class="col-4"><label class="fw-bold small">Hora Fin:</label><input type="time" id="crearHoraFin" class="form-control" value="21:30"></div></div><div class="mb-3"><label class="fw-bold small">Coreografías a marcar:</label><input type="text" id="crearCoreos" class="form-control" placeholder="Ej. Happy Feet..."></div><div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>Integrante</th><th>Permisos Iniciales</th></tr></thead><tbody id="listaCreaModal"></tbody></table></div></div><div class="modal-footer"><button class="btn btn-primary w-100" id="btnSaveNuevoEnsayo">Crear Ensayo</button></div></div></div></div>
     
@@ -173,7 +151,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-            <script type="module">
+    <script type="module">
+        // ==========================================
+        // MÓDULO 1: CONFIGURACIÓN FIREBASE
+        // ==========================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
@@ -189,17 +170,21 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // ==========================================
+        // MÓDULO 2: VARIABLES GLOBALES
+        // ==========================================
         let elenco = [];
         let asistencia = {};
         let listaPermisos = {};
         let passAdmin = "123456789";
         
-        let scanner = null;
+        let html5QrCode = null; // Instancia directa de la cámara
         let scanConfig = { fecha: null, hora: null };
-        let sortFechas = 'desc'; 
         let sortMiem = 'none';
 
-        // LISTA BASE
+        // ==========================================
+        // MÓDULO 3: DATOS BASE (ELENCO Y EXCEL)
+        // ==========================================
         const integrantesExcel = [
             "Adrian Mauro Balderrama Fernandez", "Alejandra Patricia Jemio Berrios", 
             "Ana Camila Joicet Vallejos Rojas", "Ana Yolanda Arancibia Castro", 
@@ -215,14 +200,12 @@
             "Paola Mikaela Camacho Moller", "Rafael",
             "Rodrigo García Veizaga", "Simoné Cerruto Orozco",
             "Sophie Fernanda Pérez Velasquez", "Valeria Patricia Delgado Silva"
-            
         ];
 
-        // HISTORIAL DE ENSAYOS CON TUS DATOS REALES
         const historialEnsayos = [
-            { fecha: "2026-05-08", horaInicio: "19:00", horaFin: "21:00", coreografias: "A quien le importa", valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1] },
-            { fecha: "2026-05-10", horaInicio: "15:00", horaFin: "18:00", coreografias: "Livin' la vida loca y Azúcar Amargo", valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1] },
-            { fecha: "2026-05-13", horaInicio: "18:00", horaFin: "20:00", coreografias: "Cuando seas grande", valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1] },
+            { fecha: "2026-05-08", horaInicio: "19:00", horaFin: "21:00", coreografias: "A quien le importa", valores: [1, -1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] },
+            { fecha: "2026-05-10", horaInicio: "15:00", horaFin: "18:00", coreografias: "Livin' la vida loca y Azúcar Amargo", valores: [1, -1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1] },
+            { fecha: "2026-05-13", horaInicio: "18:00", horaFin: "20:00", coreografias: "Cuando seas grande", valores: [0, -1, -1, 1, 1, 0, 1, 0, 1, -1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, -1] },
             { fecha: "2026-05-15", horaInicio: "18:30", horaFin: "21:00", coreografias: "La Muralla / Torero", valores: [] },
             { fecha: "2026-05-17", horaInicio: "15:00", horaFin: "19:00", coreografias: "Caprichosa / Oye Mi amor / Claridad", valores: [] },
             { fecha: "2026-05-19", horaInicio: "18:00", horaFin: "20:00", coreografias: "Ahora te puedes marchar", valores: [] },
@@ -238,6 +221,9 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
+        // ==========================================
+        // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
+        // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
         const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
         const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
@@ -263,18 +249,13 @@
                 const mesRuta = ens.fecha.substring(0, 7);
                 const ensayoRef = ref(db, `ensayos/${mesRuta}/${ens.fecha}`);
                 const eSnap = await get(ensayoRef);
-                
                 if (!eSnap.exists()) {
                     let detalle = {};
                     elencoDB.forEach((miembro, index) => {
                         let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
                         detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
                     });
-                    
-                    await set(ensayoRef, {
-                        fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin,
-                        coreografias: ens.coreografias, detalle: detalle
-                    });
+                    await set(ensayoRef, { fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin, coreografias: ens.coreografias, detalle: detalle });
                 }
             }
         }
@@ -319,9 +300,7 @@
             if(Object.keys(asistencia).length > 0) {
                 Object.values(asistencia).forEach(ens => {
                     let ensayoYaOcurrio = false;
-                    Object.values(ens.detalle).forEach(inf => {
-                        if(inf.estado !== "Pendiente") ensayoYaOcurrio = true;
-                    });
+                    Object.values(ens.detalle).forEach(inf => { if(inf.estado !== "Pendiente") ensayoYaOcurrio = true; });
                     
                     if (ensayoYaOcurrio) {
                         tEnsayosActivos++;
@@ -334,9 +313,7 @@
                                 if (inf.estado === "Puntual" || inf.estado === "Atrasado" || inf.estado === "Permiso tarde" || inf.estado === "Asistió") {
                                     stats[m.id].asis++;
                                     if(inf.estado === "Atrasado" || (inf.estado==="Asistió" && inf.hora>ens.horaInicio)) stats[m.id].atrasos++;
-                                } else if (inf.estado === "Permiso") {
-                                    stats[m.id].perm++;
-                                }
+                                } else if (inf.estado === "Permiso") { stats[m.id].perm++; }
                             }
                         });
                     }
@@ -352,13 +329,17 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
+        // ==========================================
+        // MÓDULO 5: RENDERIZADO DE INTERFAZ (TABLA INVERTIDA)
+        // ==========================================
         function renderUI() {
             const { stats, tEnsayos } = obtenerEstadisticas();
 
+            // Vista Pública 
             const pubList = document.getElementById('listaHorariosPublicos');
             pubList.innerHTML = '';
-            let fechasOrd = Object.keys(asistencia).sort(); 
-            fechasOrd.forEach(f => {
+            let fechasTodas = Object.keys(asistencia).sort(); 
+            fechasTodas.forEach(f => {
                 const ens = asistencia[f];
                 pubList.innerHTML += `<li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-center mb-1">
@@ -371,12 +352,13 @@
 
             const selE = document.getElementById('permisoEns');
             selE.innerHTML = '<option value="">-- Elige la fecha --</option>';
-            fechasOrd.forEach(f => selE.innerHTML += `<option value="${f}">${obtenerDia(f)} ${f}</option>`);
+            fechasTodas.forEach(f => selE.innerHTML += `<option value="${f}">${obtenerDia(f)} ${f}</option>`);
 
             const selM = document.getElementById('permisoMiem');
             selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
             [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
 
+            // Vista Admin - Tabla Invertida (Filas: Integrantes, Columnas: Fechas)
             let elencoOrd = [...elenco];
             if(sortMiem === 'pDesc') elencoOrd.sort((a,b) => stats[b.id].pctN - stats[a.id].pctN);
             if(sortMiem === 'pAsc') elencoOrd.sort((a,b) => stats[a.id].pctN - stats[b.id].pctN);
@@ -384,66 +366,60 @@
             if(sortMiem === 'zA') elencoOrd.sort((a,b) => b.nombre.localeCompare(a.nombre));
 
             const head = document.getElementById('headerAdmin');
-            head.innerHTML = '<th class="align-middle" style="min-width: 160px;">Día / Fecha</th>';
-            elencoOrd.forEach(m => head.innerHTML += `<th><div class="nombre-corto">${formatearNombre(m.nombre)}</div></th>`);
+            head.innerHTML = '<th class="align-middle text-start" style="min-width: 200px;">👥 Integrante</th>';
+            
+            fechasTodas.forEach(f => {
+                const ens = asistencia[f];
+                head.innerHTML += `<th>
+                    <div class="d-flex flex-column align-items-center" style="min-width:110px;">
+                        <span class="dia-semana small">${obtenerDia(f)}</span>
+                        <strong>${f.split('-').slice(1).join('/')}</strong>
+                        <small class="text-muted fst-italic mb-1 text-truncate" style="max-width: 90px;" title="${ens.coreografias}">${ens.coreografias || 'TBD'}</small>
+                        <div class="d-flex gap-1 mt-1">
+                            <button class="btn btn-sm btn-outline-dark btn-edi py-0 px-1" data-fecha="${f}">✏️</button>
+                            <button class="btn btn-sm btn-success btn-scan py-0 px-1" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
+                        </div>
+                    </div>
+                </th>`;
+            });
+            head.innerHTML += `<th>% Asist.</th><th>% (+Perm)</th><th>🔴 Atr.</th><th>⭐ Pts</th>`;
 
             const body = document.getElementById('cuerpoAdmin');
             body.innerHTML = '';
-            let fAdminOrd = Object.keys(asistencia).sort();
-            if(sortFechas === 'desc') fAdminOrd.reverse();
-
-            fAdminOrd.forEach(f => {
-                const ens = asistencia[f];
+            elencoOrd.forEach(m => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>
-                    <div class="d-flex flex-column align-items-center">
-                        <span class="dia-semana">${obtenerDia(f)} (${ens.horaInicio}-${ens.horaFin||'21:30'})</span>
-                        <strong class="mb-1">${f}</strong>
-                        <small class="text-muted fst-italic mb-1 text-truncate" style="max-width: 140px;">${ens.coreografias || 'Por definir'}</small>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-outline-dark btn-edi" data-fecha="${f}">✏️</button>
-                            <button class="btn btn-sm btn-success btn-scan" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
-                        </div>
-                    </div>
-                </td>`;
+                tr.innerHTML = `<th class="text-start align-middle bg-white">${m.nombre}</th>`;
                 
-                elencoOrd.forEach(m => {
+                fechasTodas.forEach(f => {
+                    const ens = asistencia[f];
                     const info = ens.detalle[m.id] || { estado: "Pendiente", hora: "-" };
                     const td = document.createElement('td');
-                    if (info.estado === "Pendiente") { td.className="bg-light text-muted"; td.innerHTML=`<small>-</small>`; }
-                    else if (info.estado === "Puntual" || (info.estado === "Asistió" && info.hora <= ens.horaInicio)) { td.className="estado-puntual"; td.innerHTML=`✔ Puntual<br><small>${info.hora}</small>`; }
-                    else if (info.estado === "Atrasado" || (info.estado === "Asistió" && info.hora > ens.horaInicio)) { td.className="estado-atrasado"; td.innerHTML=`⚠️ Atraso<br><small>${info.hora}</small>`; }
-                    else if (info.estado === "Permiso tarde") { td.className="estado-permiso-tarde"; td.innerHTML=`🕒 P. Tarde<br><small class="text-truncate d-inline-block" style="max-width:70px;">${info.hora}</small>`; }
-                    else if (info.estado === "Permiso") { td.className="estado-permiso"; td.innerHTML=`P. Falta<br><small class="text-truncate d-inline-block" style="max-width:70px;">${info.hora}</small>`; }
-                    else { td.className="estado-falto"; td.textContent="✘"; }
+                    if (info.estado === "Pendiente") { td.className="bg-light text-muted align-middle"; td.innerHTML=`<small>-</small>`; }
+                    else if (info.estado === "Puntual" || (info.estado === "Asistió" && info.hora <= ens.horaInicio)) { td.className="estado-puntual align-middle"; td.innerHTML=`✔<br><small>${info.hora}</small>`; }
+                    else if (info.estado === "Atrasado" || (info.estado === "Asistió" && info.hora > ens.horaInicio)) { td.className="estado-atrasado align-middle"; td.innerHTML=`⚠️<br><small>${info.hora}</small>`; }
+                    else if (info.estado === "Permiso tarde") { td.className="estado-permiso-tarde align-middle"; td.innerHTML=`🕒 PT<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:60px;">${info.hora}</small>`; }
+                    else if (info.estado === "Permiso") { td.className="estado-permiso align-middle"; td.innerHTML=`PF<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:60px;">${info.hora}</small>`; }
+                    else { td.className="estado-falto align-middle"; td.textContent="✘"; }
                     tr.appendChild(td);
                 });
-                body.appendChild(tr);
-            });
 
-            if(tEnsayos > 0) {
-                const fN = document.getElementById('footAsisNeto'); fN.innerHTML = '<td>% Asistencias</td>';
-                const fJ = document.getElementById('footAsisJust'); fJ.innerHTML = '<td>% (+ Permisos)</td>';
-                const fA = document.getElementById('footAtrasos'); fA.innerHTML = '<td>🔴 Atrasos Injusti.</td>';
-                const fP = document.getElementById('footPuntaje'); fP.innerHTML = '<td>⭐ Puntaje Total</td>';
-
-                elencoOrd.forEach(m => {
-                    fN.innerHTML += `<td class="text-success">${stats[m.id].pctN}%</td>`;
-                    fJ.innerHTML += `<td class="text-warning">${stats[m.id].pctJ}%</td>`;
-                    fA.innerHTML += `<td class="text-danger">${stats[m.id].atrasos}</td>`;
-                    
+                if(tEnsayos > 0) {
                     const pts = stats[m.id].puntaje;
                     const colorP = pts > 0 ? 'text-success' : (pts < 0 ? 'text-danger' : 'text-dark');
-                    fP.innerHTML += `<td class="fw-bold ${colorP}">${pts} pts</td>`;
-                });
-            } else {
-                document.getElementById('footAsisNeto').innerHTML = '';
-                document.getElementById('footAsisJust').innerHTML = '';
-                document.getElementById('footAtrasos').innerHTML = '';
-                document.getElementById('footPuntaje').innerHTML = '';
-            }
+                    tr.innerHTML += `
+                        <td class="text-success align-middle fw-bold">${stats[m.id].pctN}%</td>
+                        <td class="text-warning align-middle fw-bold">${stats[m.id].pctJ}%</td>
+                        <td class="text-danger align-middle fw-bold">${stats[m.id].atrasos}</td>
+                        <td class="align-middle fw-bold ${colorP}">${pts}</td>
+                    `;
+                } else { tr.innerHTML += `<td>-</td><td>-</td><td>-</td><td>-</td>`; }
+                
+                body.appendChild(tr);
+            });
         }
-
+        // ==========================================
+        // MÓDULO 6: CÁMARA TRASERA Y QR
+        // ==========================================
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             const res = document.getElementById('resultadosBusqueda');
@@ -471,49 +447,87 @@
 
             const canvasFinal = document.createElement('canvas');
             const ctx = canvasFinal.getContext('2d');
-            canvasFinal.width = 320;
-            canvasFinal.height = 380;
-
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, canvasFinal.width, canvasFinal.height);
-
-            ctx.fillStyle = "#0d6efd";
-            ctx.font = "bold 20px Arial";
-            ctx.textAlign = "center";
+            canvasFinal.width = 320; canvasFinal.height = 380;
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvasFinal.width, canvasFinal.height);
+            ctx.fillStyle = "#0d6efd"; ctx.font = "bold 20px Arial"; ctx.textAlign = "center";
             ctx.fillText("Control de asistencia TINI", canvasFinal.width / 2, 40);
-
             ctx.drawImage(qrCanvasOriginal, 60, 70, 200, 200);
-
-            ctx.fillStyle = "#212529";
-            ctx.font = "bold 16px Arial";
-            ctx.fillText(nombre, canvasFinal.width / 2, 320);
-            
-            ctx.font = "italic 13px Arial";
-            ctx.fillStyle = "#6c757d";
+            ctx.fillStyle = "#212529"; ctx.font = "bold 16px Arial"; ctx.fillText(nombre, canvasFinal.width / 2, 320);
+            ctx.font = "italic 13px Arial"; ctx.fillStyle = "#6c757d";
             ctx.fillText("Guarda esta imagen para tus ensayos", canvasFinal.width / 2, 345);
 
-            canvasFinal.toBlob((blob) => {
-                saveAs(blob, `QR_Tini_${nombre.split(' ')[0]}.jpg`);
-            }, "image/jpeg");
+            canvasFinal.toBlob((blob) => { saveAs(blob, `QR_Tini_${nombre.split(' ')[0]}.jpg`); }, "image/jpeg");
         });
 
-        document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
-            const id = document.getElementById('permisoMiem').value;
-            const fecha = document.getElementById('permisoEns').value;
-            const tipo = document.getElementById('permisoTipo').value;
-            const tol = document.getElementById('permisoTolerancia').value;
-            const razon = document.getElementById('permisoRazon').value;
-            if(!id || !fecha || !razon) return alert("Completa todos los campos obligatorios.");
-            const pId = 'p_' + Date.now();
-            await set(ref(db, `permisos/${pId}`), { miemId: id, fecha, tipo, tolerancia: tol, razon, enviada: new Date().toISOString() });
-            const mes = fecha.substring(0, 7);
-            const anotacion = tipo === "Permiso tarde" ? tol : razon.substring(0, 15)+"...";
-            await update(ref(db, `ensayos/${mes}/${fecha}/detalle/${id}`), { estado: tipo, hora: anotacion });
-            alert("Permiso registrado correctamente.");
-            bootstrap.Modal.getInstance(document.getElementById('modalPermiso')).hide();
-            cargarDatos();
+        // Escáner Mejorado (Cámara trasera por defecto)
+        document.addEventListener('click', (e) => {
+            if(e.target.closest('.btn-scan')) {
+                const b = e.target.closest('.btn-scan');
+                scanConfig = { fecha: b.dataset.fecha, hora: b.dataset.hora };
+                document.getElementById('infoScanLable').innerText = `${scanConfig.fecha} | Inicio: ${scanConfig.hora}`;
+                
+                new bootstrap.Modal(document.getElementById('modalScanner')).show();
+                
+                html5QrCode = new Html5Qrcode("reader");
+                html5QrCode.start(
+                    { facingMode: "environment" }, // Fuerza cámara trasera
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    onScanSuccess,
+                    (errorMessage) => { /* Silenciar errores de escaneo continuo */ }
+                ).catch(err => {
+                    document.getElementById('reader').innerHTML = `<div class="p-3 text-danger">Error: Asegúrate de dar permisos de cámara. (${err})</div>`;
+                });
+            }
         });
 
+        async function onScanSuccess(id) {
+            if(html5QrCode) html5QrCode.pause(); // Pausa lectura momentáneamente
+            const miem = elenco.find(m => m.id === id);
+            const res = document.getElementById('scanResult');
+            const txt = document.getElementById('scanResultText');
+            res.style.display = 'block';
+
+            if(!miem) { 
+                txt.className="scan-success-toast bg-danger text-white border-danger"; 
+                txt.innerHTML = "❌ QR Inválido"; 
+                setTimeout(()=> { res.style.display='none'; if(html5QrCode) html5QrCode.resume(); }, 2000); 
+                return; 
+            }
+
+            const now = new Date();
+            const hrReal = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+            const prev = asistencia[scanConfig.fecha].detalle[id]?.estado || "Pendiente";
+            let fEst = "Puntual";
+            if(hrReal > scanConfig.hora) fEst = (prev === "Permiso tarde") ? "Permiso tarde" : "Atrasado";
+
+            try {
+                await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: fEst, hora: hrReal });
+                asistencia[scanConfig.fecha].detalle[id] = { estado: fEst, hora: hrReal }; 
+                txt.className="scan-success-toast text-center"; 
+                txt.innerHTML = `✅ ¡Registrado!<br><span class="text-dark">${miem.nombre}</span><br><small class="text-muted">${fEst} (${hrReal})</small>`;
+            } catch (er) { 
+                txt.className="scan-success-toast bg-danger text-white border-danger"; 
+                txt.innerHTML = "Error conexión"; 
+            }
+
+            // Desaparece en 2 segundos y reactiva la cámara
+            setTimeout(() => { 
+                res.style.display='none'; 
+                if(html5QrCode) html5QrCode.resume(); 
+            }, 2000);
+        }
+
+        // Apagar cámara al cerrar modal
+        document.getElementById('modalScanner').addEventListener('hidden.bs.modal', () => {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => { html5QrCode.clear(); }).catch(err => console.log(err));
+            }
+            renderUI();
+        });
+
+        // ==========================================
+        // MÓDULO 7: GESTIÓN DE ENSAYOS Y EDICIÓN
+        // ==========================================
         document.getElementById('btnManageEnsayo').onclick = () => {
             const tb = document.getElementById('listaCreaModal'); tb.innerHTML = '';
             document.getElementById('crearFecha').value = ''; document.getElementById('crearCoreos').value = '';
@@ -580,7 +594,38 @@
             cargarDatos();
         };
 
-        // CRUD ELENCO CON ORDEN Y ADVERTENCIA
+        // ==========================================
+        // MÓDULO 8: GESTIÓN DE PERMISOS
+        // ==========================================
+        document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
+            const id = document.getElementById('permisoMiem').value;
+            const fecha = document.getElementById('permisoEns').value;
+            const tipo = document.getElementById('permisoTipo').value;
+            const tol = document.getElementById('permisoTolerancia').value;
+            const razon = document.getElementById('permisoRazon').value;
+            if(!id || !fecha || !razon) return alert("Completa todos los campos obligatorios.");
+            const pId = 'p_' + Date.now();
+            await set(ref(db, `permisos/${pId}`), { miemId: id, fecha, tipo, tolerancia: tol, razon, enviada: new Date().toISOString() });
+            const mes = fecha.substring(0, 7);
+            const anotacion = tipo === "Permiso tarde" ? tol : razon.substring(0, 15)+"...";
+            await update(ref(db, `ensayos/${mes}/${fecha}/detalle/${id}`), { estado: tipo, hora: anotacion });
+            alert("Permiso registrado correctamente.");
+            bootstrap.Modal.getInstance(document.getElementById('modalPermiso')).hide();
+            cargarDatos();
+        });
+
+        document.getElementById('btnManagePermisos').onclick = () => {
+            const tb = document.getElementById('listaBandeja'); tb.innerHTML = '';
+            Object.values(listaPermisos).sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
+                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
+                tb.innerHTML += `<tr><td>${p.fecha}</td><td>${nom}</td><td><span class="badge bg-${p.tipo==="Permiso"?"warning":"info text-dark"}">${p.tipo}</span><br><small>${p.tolerancia||''}</small></td><td><small>${p.razon}</small></td></tr>`;
+            });
+            new bootstrap.Modal(document.getElementById('modalBandeja')).show();
+        };
+
+        // ==========================================
+        // MÓDULO 9: CRUD ELENCO Y EXPORTACIÓN EXCEL
+        // ==========================================
         document.getElementById('btnManageElenco').onclick = () => {
             elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
             actualizarListaVisualElenco();
@@ -624,99 +669,32 @@
         });
 
         function actualizarListaVisualElenco() {
-            const ul = document.getElementById('listaElencoCrud');
-            ul.innerHTML = '';
+            const ul = document.getElementById('listaElencoCrud'); ul.innerHTML = '';
             elenco.forEach((m, i) => {
-                ul.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>${m.nombre}</span>
-                    <div>
-                        <button class="btn btn-sm btn-warning btn-edit-m" data-i="${i}">✏️</button>
-                        <button class="btn btn-sm btn-danger btn-del-m" data-i="${i}">×</button>
-                    </div>
-                </li>`;
+                ul.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center"><span>${m.nombre}</span><div><button class="btn btn-sm btn-warning btn-edit-m" data-i="${i}">✏️</button> <button class="btn btn-sm btn-danger btn-del-m" data-i="${i}">×</button></div></li>`;
             });
         }
-
-        document.getElementById('btnManagePermisos').onclick = () => {
-            const tb = document.getElementById('listaBandeja'); tb.innerHTML = '';
-            Object.values(listaPermisos).sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
-                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
-                tb.innerHTML += `<tr><td>${p.fecha}</td><td>${nom}</td><td><span class="badge bg-${p.tipo==="Permiso"?"warning":"info text-dark"}">${p.tipo}</span><br><small>${p.tolerancia||''}</small></td><td><small>${p.razon}</small></td></tr>`;
-            });
-            new bootstrap.Modal(document.getElementById('modalBandeja')).show();
-        };
-
-        document.getElementById('btnChangePass').onclick = () => new bootstrap.Modal(document.getElementById('modalPassword')).show();
-        document.getElementById('btnGuardarPassword').onclick = async () => {
-            const np = document.getElementById('nuevaPassword').value;
-            if(np) { passAdmin = np; await set(ref(db, 'configuracion/password'), passAdmin); alert("Clave actualizada."); bootstrap.Modal.getInstance(document.getElementById('modalPassword')).hide(); }
-        };
-
-        document.addEventListener('click', (e) => {
-            if(e.target.closest('.btn-scan')) {
-                const b = e.target.closest('.btn-scan');
-                scanConfig = { fecha: b.dataset.fecha, hora: b.dataset.hora };
-                document.getElementById('infoScanLable').innerText = `Asistencia: ${scanConfig.fecha} (Hora Ofic: ${scanConfig.hora})`;
-                new bootstrap.Modal(document.getElementById('modalScanner')).show();
-                scanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: 250 });
-                scanner.render(onScanSuccess);
-            }
-        });
-
-        async function onScanSuccess(id) {
-            if(scanner) scanner.pause();
-            const miem = elenco.find(m => m.id === id);
-            const res = document.getElementById('scanResult');
-            const txt = document.getElementById('scanResultText');
-            res.style.display = 'block';
-
-            if(!miem) { txt.className="scan-success-toast bg-danger text-white border-danger"; txt.innerHTML = "❌ QR Inválido"; setTimeout(()=> { res.style.display='none'; if(scanner) scanner.resume(); }, 2000); return; }
-
-            const now = new Date();
-            const hrReal = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-            const prev = asistencia[scanConfig.fecha].detalle[id]?.estado || "Pendiente";
-            let fEst = "Puntual";
-            if(hrReal > scanConfig.hora) fEst = (prev === "Permiso tarde") ? "Permiso tarde" : "Atrasado";
-
-            try {
-                await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: fEst, hora: hrReal });
-                asistencia[scanConfig.fecha].detalle[id] = { estado: fEst, hora: hrReal }; 
-                txt.className="scan-success-toast bg-success text-white"; txt.innerHTML = `✅ <b>${miem.nombre}</b><br><small>${fEst} (${hrReal})</small>`;
-            } catch (er) { txt.className="scan-success-toast bg-danger text-white border-danger"; txt.innerHTML = "Error conexión"; }
-
-            setTimeout(() => { res.style.display='none'; if(scanner) scanner.resume(); }, 1500);
-        }
-
-        document.getElementById('btnCloseScanner').onclick = () => { if(scanner) scanner.clear(); renderUI(); };
-
-        // BOTONES ORDENAR Y FILTRAR
-        document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
-        document.getElementById('filtroMes').onchange = cargarDatos;
-        document.getElementById('sortFDesc').onclick = (e)=>{e.preventDefault(); sortFechas='desc'; renderUI();};
-        document.getElementById('sortFAsc').onclick = (e)=>{e.preventDefault(); sortFechas='asc'; renderUI();};
-        document.getElementById('sortMDesc').onclick = (e)=>{e.preventDefault(); sortMiem='pDesc'; renderUI();};
-        document.getElementById('sortMAsc').onclick = (e)=>{e.preventDefault(); sortMiem='pAsc'; renderUI();};
-        document.getElementById('sortAz').onclick = (e)=>{e.preventDefault(); sortMiem='aZ'; renderUI();};
-        document.getElementById('sortZa').onclick = (e)=>{e.preventDefault(); sortMiem='zA'; renderUI();};
 
         document.getElementById('btnAdminExcel').onclick = async () => {
             const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Reporte');
-            ws.addRow(['Fecha', 'Hora Inicio', 'Hora Fin', 'Coreografías', ...elenco.map(m => m.nombre)]);
-            
             let fs = Object.keys(asistencia).sort(); if(sortFechas==='desc') fs.reverse();
-            fs.forEach(f => {
-                const ens = asistencia[f]; const row = [`${obtenerDia(f)} ${f}`, ens.horaInicio, ens.horaFin || '21:30', ens.coreografias || "TBD"];
-                elenco.forEach(m => {
-                    const i = ens.detalle[m.id]||{estado:"Pendiente",hora:"-"};
+            
+            // Excel Invertido
+            const headerRow = ['Integrante', ...fs.map(f => `${obtenerDia(f)} ${f}`)];
+            ws.addRow(headerRow);
+            
+            elenco.forEach(m => {
+                const row = [m.nombre];
+                fs.forEach(f => {
+                    const i = asistencia[f].detalle[m.id]||{estado:"Pendiente",hora:"-"};
                     if(i.estado==="Pendiente") row.push("-");
-                    else if(i.estado==="Puntual"||(i.estado==="Asistió"&&i.hora<=ens.horaInicio)) row.push(`Puntual (${i.hora})`);
-                    else if(i.estado==="Atrasado"||(i.estado==="Asistió"&&i.hora>ens.horaInicio)) row.push(`Atrasado (${i.hora})`);
+                    else if(i.estado==="Puntual"||(i.estado==="Asistió"&&i.hora<=asistencia[f].horaInicio)) row.push(`Puntual (${i.hora})`);
+                    else if(i.estado==="Atrasado"||(i.estado==="Asistió"&&i.hora>asistencia[f].horaInicio)) row.push(`Atrasado (${i.hora})`);
                     else if(i.estado==="Permiso tarde") row.push(`Permiso Tarde (${i.hora})`);
                     else if(i.estado==="Permiso") row.push("Permiso"); else row.push("Faltó");
                 });
                 const r = ws.addRow(row);
-                r.eachCell((c, col) => { if(col>4 && c.value) {
+                r.eachCell((c, col) => { if(col>1 && c.value) {
                     let v = c.value.toString();
                     if(v.includes("Puntual")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}};
                     else if(v.includes("Atrasado")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFCC99'}};
@@ -727,6 +705,22 @@
                 }});
             });
             const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_Elenco_${document.getElementById('filtroMes').value}.xlsx`);
+        };
+
+        // ==========================================
+        // MÓDULO 10: UTILIDADES MENORES Y LOGIN
+        // ==========================================
+        document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
+        document.getElementById('filtroMes').onchange = cargarDatos;
+        document.getElementById('sortMDesc').onclick = (e)=>{e.preventDefault(); sortMiem='pDesc'; renderUI();};
+        document.getElementById('sortMAsc').onclick = (e)=>{e.preventDefault(); sortMiem='pAsc'; renderUI();};
+        document.getElementById('sortAz').onclick = (e)=>{e.preventDefault(); sortMiem='aZ'; renderUI();};
+        document.getElementById('sortZa').onclick = (e)=>{e.preventDefault(); sortMiem='zA'; renderUI();};
+
+        document.getElementById('btnChangePass').onclick = () => new bootstrap.Modal(document.getElementById('modalPassword')).show();
+        document.getElementById('btnGuardarPassword').onclick = async () => {
+            const np = document.getElementById('nuevaPassword').value;
+            if(np) { passAdmin = np; await set(ref(db, 'configuracion/password'), passAdmin); alert("Clave actualizada."); bootstrap.Modal.getInstance(document.getElementById('modalPassword')).hide(); }
         };
 
         document.getElementById('btnTabPublica').onclick = () => {
@@ -751,7 +745,6 @@
             } else alert("Contraseña incorrecta");
         };
 
-        // INICIA EL SISTEMA
         init();
     </script>
 </body>
