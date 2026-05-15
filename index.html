@@ -155,11 +155,15 @@
     <div class="modal fade" id="modalEditarMiembro" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title fw-bold">⚙️ Editar Integrante</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
         <label class="fw-bold small">Nombre Completo (Para QR y Permisos):</label>
         <input type="text" id="editMiemNombre" class="form-control mb-3">
-        <label class="fw-bold small">Seleccionar Apodo (Para tabla de asistencia):</label>
+        <label class="fw-bold small">Seleccionar Nombres (Por tics):</label>
         <p class="text-muted small mb-2">Marca los nombres que quieres que aparezcan:</p>
         <div id="contenedorCheckboxesApodo" class="d-flex flex-wrap gap-2 p-3 border rounded bg-light mb-3"></div>
+        <label class="fw-bold small">O escribir Apodo Personalizado:</label>
+        <input type="text" id="editMiemApodoPers" class="form-control mb-3" placeholder="Ej. Michael Jackson">
+        <p class="text-muted" style="font-size: 0.75rem;">* Si escribes algo aquí, se ignorarán los tics de arriba.</p>
         <button class="btn btn-warning w-100 fw-bold" id="btnSaveEditMiem">Guardar Cambios</button>
     </div></div></div></div>
+
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -234,15 +238,21 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
         
         const formatearNombre = (m) => {
+            // Prioridad 1: Apodo personalizado manual
+            if (m.apodoPersonalizado && m.apodoPersonalizado.trim() !== "") {
+                return m.apodoPersonalizado;
+            }
+            // Prioridad 2: Nombres seleccionados por checkboxes
             if (m.apodo && m.apodo.length > 0) {
                 return m.apodo.join('<br>');
             }
+            // Prioridad 3: Regla automática (1er y 3er nombre)
             const partes = m.nombre.trim().split(' ');
             if (partes.length === 1) return partes[0];
             if (partes.length === 2) return `${partes[0]}<br>${partes[1]}`;
@@ -293,7 +303,7 @@
                 if(eSnap.exists()) {
                     elenco = eSnap.val();
                 } else {
-                    elenco = integrantesExcel.map(n => ({ id: generarId(), nombre: n }));
+                    elenco = integrantesExcel.map(n => ({ id: generarId(), nombre: n, apodoPersonalizado: "" }));
                     await set(ref(db, 'configuracion/elenco'), elenco);
                 }
 
@@ -792,7 +802,7 @@
         document.getElementById('btnAddMiem').onclick = async () => {
             const n = document.getElementById('nuevoNombre').value.trim();
             if(n) {
-                const nuevoMiem = { id: generarId(), nombre: n, apodo: [] };
+                const nuevoMiem = { id: generarId(), nombre: n, apodo: [], apodoPersonalizado: "" };
                 elenco.push(nuevoMiem);
                 elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
                 await set(ref(db, 'configuracion/elenco'), elenco);
@@ -810,17 +820,18 @@
                     actualizarListaVisualElenco();
                 }
             }
-            // NUEVA LÓGICA DE EDICIÓN CON MODAL Y CHECKBOXES
+            
             if(e.target.closest('.btn-edit-m')){
                 const i = e.target.closest('.btn-edit-m').dataset.i;
                 const m = elenco[i];
                 miemEditandoId = m.id;
 
                 document.getElementById('editMiemNombre').value = m.nombre;
+                document.getElementById('editMiemApodoPers').value = m.apodoPersonalizado || "";
+                
                 const container = document.getElementById('contenedorCheckboxesApodo');
                 container.innerHTML = '';
 
-                // Separar nombres y crear checkboxes
                 const partes = m.nombre.trim().split(/\s+/);
                 partes.forEach((p, idx) => {
                     const checked = (!m.apodo || m.apodo.length === 0 || m.apodo.includes(p)) ? 'checked' : '';
@@ -835,14 +846,13 @@
             }
         });
 
-        // Guardar cambios del integrante (Nombre y Apodo)
         document.getElementById('btnSaveEditMiem').onclick = async () => {
             const miem = elenco.find(m => m.id === miemEditandoId);
             if(!miem) return;
 
             miem.nombre = document.getElementById('editMiemNombre').value.trim();
+            miem.apodoPersonalizado = document.getElementById('editMiemApodoPers').value.trim();
             
-            // Recoger los nombres tiqueados
             const seleccionados = [];
             document.querySelectorAll('.check-apodo:checked').forEach(chk => {
                 seleccionados.push(chk.value);
@@ -855,7 +865,7 @@
             bootstrap.Modal.getInstance(document.getElementById('modalEditarMiembro')).hide();
             actualizarListaVisualElenco();
             renderUI();
-            alert("Cambios guardados. El apodo se reflejará en la tabla.");
+            alert("Cambios guardados exitosamente.");
         };
 
         function actualizarListaVisualElenco() {
