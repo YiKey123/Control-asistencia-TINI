@@ -542,14 +542,17 @@
             renderUI();
         });
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 7: GESTIÓN DE ENSAYOS Y EDICIÓN
         // ==========================================
         document.getElementById('btnManageEnsayo').onclick = () => {
             const tb = document.getElementById('listaCreaModal'); tb.innerHTML = '';
-            document.getElementById('crearFecha').value = ''; document.getElementById('crearCoreos').value = '';
+            document.getElementById('crearFecha').value = ''; 
+            document.getElementById('crearCoreos').value = '';
+            document.getElementById('crearLugar').value = ''; // Limpiar el lugar
+            
             elenco.forEach(m => {
-                tb.innerHTML += `<tr><td><small>${m.nombre}</small></td><td>
+                tb.innerHTML += `<tr><td><small>${formatearNombre(m.nombre)}</small></td><td>
                     <select class="form-select form-select-sm sel-crea" data-id="${m.id}">
                         <option value="Pendiente">-- Pendiente (Base) --</option>
                         <option value="Permiso tarde">Tiene permiso tarde</option>
@@ -565,10 +568,15 @@
             const hIni = document.getElementById('crearHora').value;
             const hFin = document.getElementById('crearHoraFin').value;
             const coreos = document.getElementById('crearCoreos').value || "Por definir";
+            const lugarEns = document.getElementById('crearLugar').value || ""; // Capturar lugar
+            
             if(!f) return;
             let det = {};
             document.querySelectorAll('.sel-crea').forEach(s => det[s.getAttribute('data-id')] = { estado: s.value, hora: (s.value==="Pendiente"?"-":"") });
-            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { fecha: f, horaInicio: hIni, horaFin: hFin, coreografias: coreos, detalle: det });
+            
+            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { 
+                fecha: f, horaInicio: hIni, horaFin: hFin, coreografias: coreos, lugar: lugarEns, detalle: det 
+            });
             bootstrap.Modal.getInstance(document.getElementById('modalCrearEnsayo')).hide();
             cargarDatos();
         };
@@ -579,10 +587,12 @@
                 const ens = asistencia[f];
                 document.getElementById('editFecha').value = f;
                 document.getElementById('editHoraInicio').value = ens.horaInicio;
+                document.getElementById('editLugar').value = ens.lugar || ""; // Llenar el select con el lugar guardado
+                
                 const tb = document.getElementById('listaEditModal'); tb.innerHTML = '';
                 elenco.forEach(m => {
                     const inf = ens.detalle[m.id] || {estado:"Pendiente", hora:"-"};
-                    tb.innerHTML += `<tr><td><small>${m.nombre}</small></td>
+                    tb.innerHTML += `<tr><td><small>${formatearNombre(m.nombre)}</small></td>
                         <td><select class="form-select form-select-sm sel-edi" data-id="${m.id}">
                             <option value="Pendiente" ${inf.estado==="Pendiente"?"selected":""}>Pendiente</option>
                             <option value="Puntual" ${inf.estado==="Puntual"?"selected":""}>Puntual</option>
@@ -600,13 +610,16 @@
         document.getElementById('btnSaveEdicion').onclick = async () => {
             const f = document.getElementById('editFecha').value;
             const h = document.getElementById('editHoraInicio').value;
+            const l = document.getElementById('editLugar').value || ""; // Actualizar lugar
+            
             let det = {};
             document.querySelectorAll('.sel-edi').forEach(s => {
                 const id = s.getAttribute('data-id');
                 const hr = document.querySelector(`.in-edi[data-id="${id}"]`).value;
                 det[id] = { estado: s.value, hora: hr };
             });
-            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { horaInicio: h, detalle: det });
+            
+            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { horaInicio: h, lugar: l, detalle: det });
             bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide();
             cargarDatos();
         };
