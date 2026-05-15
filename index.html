@@ -159,6 +159,24 @@
                                                                                                                                                                                                                                                                                                                                                                                                          >
     <div class="modal fade" id="modalBandeja" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title">Bandeja de Permisos</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-0"><div class="table-responsive m-0"><table class="table table-sm table-striped m-0"><thead><tr><th>Ensayo</th><th>Integrante</th><th>Tipo</th><th>Justificación</th></tr></thead><tbody id="listaBandeja"></tbody></table></div></div></div></div></div>
 
+    <div class="modal fade" id="modalEditarPermiso" tabindex="-1"><div class="modal-dialog modal-sm"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title fw-bold text-dark">✏️ Editar Permiso</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+        <input type="hidden" id="editPermisoId">
+        <input type="hidden" id="editPermisoRol">
+        <label class="fw-bold small">Tipo de Permiso:</label>
+        <select id="editPermisoTipo" class="form-select mb-3">
+            <option value="Falta completa">Falta completa (No asistiré)</option>
+            <option value="Llegaré tarde">Llegaré tarde</option>
+            <option value="Me iré temprano">Me iré más temprano</option>
+            <option value="Otro">Otro (Especifique abajo)</option>
+        </select>
+        <label class="fw-bold small">Motivo / Justificación:</label>
+        <textarea id="editPermisoRazon" class="form-control mb-3" rows="3" placeholder="Explica tu situación brevemente..."></textarea>
+        <div class="d-flex gap-2 mt-2">
+            <button class="btn btn-secondary w-50 fw-bold" data-bs-dismiss="modal">Cancelar</button>
+            <button class="btn btn-success w-50 fw-bold" id="btnSaveEditPermiso">Guardar</button>
+        </div>
+    </div></div></div></div>
+    
     <div class="modal fade" id="modalEditarMiembro" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title fw-bold">⚙️ Editar Integrante</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
         <label class="fw-bold small">Nombre Completo (Para QR y Permisos):</label>
         <input type="text" id="editMiemNombre" class="form-control mb-3">
@@ -170,7 +188,6 @@
         <p class="text-muted" style="font-size: 0.75rem;">* Si escribes algo aquí, se ignorarán los tics de arriba.</p>
         <button class="btn btn-warning w-100 fw-bold" id="btnSaveEditMiem">Guardar Cambios</button>
     </div></div></div></div>
-
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -680,7 +697,7 @@
             cargarDatos();
         };
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 8: GESTIÓN DE PERMISOS, HISTORIAL Y LOCALSTORAGE
         // ==========================================
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
@@ -696,7 +713,6 @@
                 miemId: id, fecha: fecha, tipo: tipo, razon: razon, enviada: new Date().toISOString(), historial: [] 
             });
             
-            // Guardar el ID en el almacenamiento local del celular del usuario
             let misPermisosLocal = JSON.parse(localStorage.getItem('misPermisosTini')) || [];
             misPermisosLocal.push(pId);
             localStorage.setItem('misPermisosTini', JSON.stringify(misPermisosLocal));
@@ -749,7 +765,7 @@
             const arrayPermisos = Object.entries(listaPermisos).map(([pId, data]) => ({ pId, ...data }));
             
             arrayPermisos.sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
-                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido"; // Usa nombre completo real
+                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
                 
                 let btnHistorial = (p.historial && p.historial.length > 0) ? 
                     `<button class="btn btn-sm btn-info py-0 px-2 btn-ver-historial fw-bold" data-pid="${p.pId}">🕒 Ver Cambios</button>` : '';
@@ -792,7 +808,7 @@
                 new bootstrap.Modal(document.getElementById('modalHistorialPermiso')).show();
             }
 
-            // EDITAR PERMISO (Funciona para el Usuario y para el Admin)
+            // ABRIR EL NUEVO MODAL DE EDICIÓN
             if(e.target.closest('.btn-editar-global')) {
                 const btn = e.target.closest('.btn-editar-global');
                 const pId = btn.dataset.pid;
@@ -800,60 +816,81 @@
                 const permiso = listaPermisos[pId];
                 if(!permiso) return;
 
-                let opciones = "Elige el número del nuevo tipo:\n1: Falta completa\n2: Llegaré tarde\n3: Me iré temprano\n4: Otro";
-                let nTipoNum = prompt(`Tipo actual: ${permiso.tipo}\n\n${opciones}`, "");
-                if(nTipoNum === null) return; 
-                
-                let nuevoTipo = permiso.tipo;
-                if(nTipoNum === "1") nuevoTipo = "Falta completa";
-                else if(nTipoNum === "2") nuevoTipo = "Llegaré tarde";
-                else if(nTipoNum === "3") nuevoTipo = "Me iré temprano";
-                else if(nTipoNum === "4") nuevoTipo = "Otro";
-                else if(nTipoNum.trim() !== "") alert("Número no válido. Se mantendrá el tipo actual.");
-
-                const nuevaRazon = prompt("Editar motivo / justificación:", permiso.razon);
-                if(nuevaRazon === null) return; 
-
-                if (nuevaRazon.trim() !== "" || nuevoTipo !== permiso.tipo) {
-                    
-                    // REGISTRAR EN EL HISTORIAL ANTES DE CAMBIAR
-                    if(!permiso.historial) permiso.historial = [];
-                    permiso.historial.push({
-                        fechaModificacion: new Date().toISOString(),
-                        tipoAnterior: permiso.tipo,
-                        razonAnterior: permiso.razon,
-                        modificadoPor: rolModificador
-                    });
-
-                    permiso.tipo = nuevoTipo;
-                    permiso.razon = nuevaRazon.trim();
-                    
-                    await update(ref(db, `permisos/${pId}`), { tipo: permiso.tipo, razon: permiso.razon, historial: permiso.historial });
-                    
-                    // Actualizar estado en tabla de ensayos
-                    let estadoActual = "Pendiente";
-                    if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
-                        estadoActual = asistencia[permiso.fecha].detalle[permiso.miemId].estado;
-                    }
-
-                    let estadoBase = estadoActual; 
-                    if (permiso.tipo === "Falta completa") estadoBase = "Permiso";
-                    else if (estadoActual === "Permiso" && permiso.tipo !== "Falta completa") estadoBase = "Pendiente";
-
-                    const mes = permiso.fecha.substring(0, 7);
-                    const anotacion = `${permiso.tipo}: ${permiso.razon}`.substring(0, 15) + "...";
-                    
-                    await update(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}`), { estado: estadoBase, hora: anotacion });
-                    
-                    // Recargar vistas en vivo
-                    cargarDatos();
-                    
-                    if(rolModificador === "Usuario") {
-                        // Refrescar el modal de "Mis permisos" cerrándolo y volviéndolo a abrir simulando click
-                        bootstrap.Modal.getInstance(document.getElementById('modalMisPermisos')).hide();
-                        setTimeout(() => document.getElementById('btnVerMisPermisos').click(), 400);
-                    }
+                // Advertencia estricta para el Admin
+                if (rolModificador === "Admin") {
+                    const seguro = confirm("⚠️ ADVERTENCIA ⚠️\nAl editar el permiso de otra persona, el cambio quedará registrado permanentemente en el historial con fecha y hora para evitar malos entendidos.\n\n¿Estás seguro de continuar con la edición?");
+                    if (!seguro) return; // Si le da a cancelar, no hace nada
                 }
+
+                // Cargar los datos actuales en el nuevo modal
+                document.getElementById('editPermisoId').value = pId;
+                document.getElementById('editPermisoRol').value = rolModificador;
+                document.getElementById('editPermisoTipo').value = permiso.tipo;
+                document.getElementById('editPermisoRazon').value = permiso.razon;
+
+                new bootstrap.Modal(document.getElementById('modalEditarPermiso')).show();
+            }
+        });
+
+        // GUARDAR CAMBIOS DEL MODAL DE EDICIÓN
+        document.getElementById('btnSaveEditPermiso').addEventListener('click', async () => {
+            const pId = document.getElementById('editPermisoId').value;
+            const rolModificador = document.getElementById('editPermisoRol').value;
+            const nuevoTipo = document.getElementById('editPermisoTipo').value;
+            const nuevaRazon = document.getElementById('editPermisoRazon').value.trim();
+
+            const permiso = listaPermisos[pId];
+            if(!permiso) return;
+
+            if (nuevaRazon === "") return alert("El motivo no puede estar vacío.");
+
+            // Validar si realmente cambió algo
+            if (nuevaRazon !== permiso.razon || nuevoTipo !== permiso.tipo) {
+                
+                // 1. Guardar copia en el historial
+                if(!permiso.historial) permiso.historial = [];
+                permiso.historial.push({
+                    fechaModificacion: new Date().toISOString(),
+                    tipoAnterior: permiso.tipo,
+                    razonAnterior: permiso.razon,
+                    modificadoPor: rolModificador
+                });
+
+                // 2. Actualizar variables locales
+                permiso.tipo = nuevoTipo;
+                permiso.razon = nuevaRazon;
+                
+                // 3. Subir a Firebase
+                await update(ref(db, `permisos/${pId}`), { tipo: permiso.tipo, razon: permiso.razon, historial: permiso.historial });
+                
+                // 4. Actualizar el ensayo en caso de que cambie de verde a amarillo o viceversa
+                let estadoActual = "Pendiente";
+                if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
+                    estadoActual = asistencia[permiso.fecha].detalle[permiso.miemId].estado;
+                }
+
+                let estadoBase = estadoActual; 
+                if (permiso.tipo === "Falta completa") estadoBase = "Permiso";
+                else if (estadoActual === "Permiso" && permiso.tipo !== "Falta completa") estadoBase = "Pendiente";
+
+                const mes = permiso.fecha.substring(0, 7);
+                const anotacion = `${permiso.tipo}: ${permiso.razon}`.substring(0, 15) + "...";
+                
+                await update(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}`), { estado: estadoBase, hora: anotacion });
+                
+                // 5. Refrescar las vistas
+                cargarDatos();
+                bootstrap.Modal.getInstance(document.getElementById('modalEditarPermiso')).hide();
+
+                if (rolModificador === "Usuario") {
+                    bootstrap.Modal.getInstance(document.getElementById('modalMisPermisos')).hide();
+                    setTimeout(() => document.getElementById('btnVerMisPermisos').click(), 400); // Re-abre mis permisos simulando click
+                } else {
+                    actualizarListaBandeja(); // Si es Admin, actualiza la bandeja que está de fondo
+                }
+            } else {
+                // Si le dio a guardar sin cambiar ni una letra, solo cierra el modal
+                bootstrap.Modal.getInstance(document.getElementById('modalEditarPermiso')).hide();
             }
         });
 
