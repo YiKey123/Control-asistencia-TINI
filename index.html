@@ -263,11 +263,13 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    <script type="module">
+        <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // Módulo: Inicialización Firebase
+        // ==========================================
+        // 1. CONFIGURACIÓN FIREBASE
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDahLtxl19fR0JTQpQvxU8MrxLdmco7_XU",
             authDomain: "asistencia-tini.firebaseapp.com",
@@ -280,7 +282,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Variables de Estado
         let elenco = [];
         let asistencia = {};
         let listaPermisos = {};
@@ -288,87 +289,247 @@
         
         let scanner = null;
         let scanConfig = { fecha: null, hora: null };
-        
-        // Configuraciones de Orden
-        let sortFechas = 'desc'; // desc, asc
-        let sortMiem = 'none'; // none, pDesc, pAsc, aZ, zA
+        let sortFechas = 'desc'; 
+        let sortMiem = 'none';
 
-        // Módulo: Utilidades
-        const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
-        const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
-        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
+        // ==========================================
+        // 2. CARGA DE HISTORIAL EXCEL ACTUALIZADA
+        // ==========================================
+        // Deja los corchetes vacíos [] para los ensayos que aún no han ocurrido
+        const historialEnsayos = [
+            {
+                fecha: "2026-05-08",
+                horaInicio: "19:00",
+                horaFin: "21:00",
+                coreografias: "A quien le importa",
+                // Valores de prueba (ajusta a tu Excel real)
+                valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            },
+            {
+                fecha: "2026-05-10",
+                horaInicio: "15:00",
+                horaFin: "18:00",
+                coreografias: "Livin' la vida loca y Azúcar Amargo",
+                valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            },
+            {
+                fecha: "2026-05-13",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "Cuando seas grande",
+                valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+            },
+            {
+                fecha: "2026-05-15",
+                horaInicio: "18:30",
+                horaFin: "21:00",
+                coreografias: "La Muralla / Torero",
+                valores: [] // <-- Vacío = Ensayo Pendiente
+            },
+            {
+                fecha: "2026-05-17",
+                horaInicio: "15:00",
+                horaFin: "19:00",
+                coreografias: "Caprichosa / Oye Mi amor / Claridad",
+                valores: []
+            },
+            {
+                fecha: "2026-05-19",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "Ahora te puedes marchar",
+                valores: []
+            },
+            {
+                fecha: "2026-05-20",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "Enamoradisimo / Vuela Vuela",
+                valores: []
+            },
+            {
+                fecha: "2026-05-22",
+                horaInicio: "18:30",
+                horaFin: "21:00",
+                coreografias: "Bailando Solo / Buleria",
+                valores: []
+            },
+            {
+                fecha: "2026-05-24",
+                horaInicio: "15:00",
+                horaFin: "19:00",
+                coreografias: "Todos me miran / No voy en tren / Será que no me amas",
+                valores: []
+            },
+            {
+                fecha: "2026-05-26",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "De boliche en boliche / Estoy hecho un demonio",
+                valores: []
+            },
+            {
+                fecha: "2026-05-27",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "Coreografías a repasar a solicitud (Día de la Madre)",
+                valores: []
+            },
+            {
+                fecha: "2026-05-29",
+                horaInicio: "18:30",
+                horaFin: "21:00",
+                coreografias: "Shakira",
+                valores: []
+            },
+            {
+                fecha: "2026-05-30",
+                horaInicio: "17:00",
+                horaFin: "20:00",
+                coreografias: "Repaso de Todo",
+                valores: []
+            },
+            {
+                fecha: "2026-05-31",
+                horaInicio: "15:00",
+                horaFin: "19:00",
+                coreografias: "Examen",
+                valores: []
+            },
+            {
+                fecha: "2026-06-02",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "Posiciones",
+                valores: []
+            },
+            {
+                fecha: "2026-06-03",
+                horaInicio: "18:00",
+                horaFin: "20:00",
+                coreografias: "Posiciones",
+                valores: []
+            }
+        ];
 
-        // Módulo: Arranque Principal
+        function traducirAsistencia(valor, horaInicio) {
+            if (valor === 1) {
+                let [h, m] = horaInicio.split(':').map(Number);
+                let totalMins = h * 60 + m - 10;
+                let newH = Math.floor(totalMins / 60).toString().padStart(2, '0');
+                let newM = (totalMins % 60).toString().padStart(2, '0');
+                return { estado: "Puntual", hora: `${newH}:${newM}` };
+            }
+            if (valor === 0) return { estado: "Permiso", hora: "Falta Justificada" };
+            if (valor === -1) return { estado: "Faltó", hora: "" };
+            // Si el valor no existe (array vacío), se marca como pendiente
+            return { estado: "Pendiente", hora: "-" }; 
+        }
+
+        async function subirHistorial() {
+            const eSnap = await get(child(ref(db), 'configuracion/elenco'));
+            if(!eSnap.exists()) return;
+            let elencoDB = eSnap.val();
+            elencoDB.sort((a,b) => a.nombre.localeCompare(b.nombre));
+
+            let batchMensual = {};
+            historialEnsayos.forEach(ens => {
+                let detalle = {};
+                elencoDB.forEach((miembro, index) => {
+                    let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
+                    detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
+                });
+                
+                const mesRuta = ens.fecha.substring(0, 7);
+                if (!batchMensual[mesRuta]) batchMensual[mesRuta] = {};
+                
+                batchMensual[mesRuta][ens.fecha] = {
+                    fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin,
+                    coreografias: ens.coreografias, detalle: detalle
+                };
+            });
+
+            for (let mes in batchMensual) { await update(ref(db, `ensayos/${mes}`), batchMensual[mes]); }
+        }
+
         async function init() {
             try {
-                // Leer Contraseña
                 const pSnap = await get(child(ref(db), 'configuracion/password'));
                 if(pSnap.exists()) passAdmin = pSnap.val();
-                else await set(ref(db, 'configuracion/password'), passAdmin);
-
-                // Leer Elenco
+                
                 const eSnap = await get(child(ref(db), 'configuracion/elenco'));
                 if(eSnap.exists()) elenco = eSnap.val();
-                else elenco = []; // Si está vacía, no forzamos nada, la base ya se cargó en pasos previos.
 
-                // Ocultar Cargador
+                if (elenco.length > 0) {
+                    document.getElementById('statusText').innerText = "Traduciendo y subiendo historial Excel...";
+                    await subirHistorial();
+                }
+
                 document.getElementById('loadingScreen').style.display = 'none';
-                
                 await cargarDatos();
-            } catch(e) {
-                document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error conectando a Firebase. Revisa conexión o reglas de la Base de Datos.</span>";
-            }
+            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error conectando a Firebase.</span>"; }
         }
 
         async function cargarDatos() {
             const mes = document.getElementById('filtroMes').value || new Date().toISOString().substring(0, 7);
-            
-            // Cargar Ensayos
             const snap = await get(ref(db, `ensayos/${mes}`));
             asistencia = snap.exists() ? snap.val() : {};
-
-            // Cargar Permisos
             const pSnap = await get(ref(db, `permisos`));
             listaPermisos = pSnap.exists() ? pSnap.val() : {};
-
             renderUI();
         }
 
         function obtenerEstadisticas() {
             let stats = {};
-            let tEnsayos = Object.keys(asistencia).length;
+            let tEnsayosActivos = 0;
             elenco.forEach(m => stats[m.id] = { asis: 0, perm: 0, atrasos: 0, pctN: 0, pctJ: 0 });
 
-            if(tEnsayos > 0) {
+            if(Object.keys(asistencia).length > 0) {
                 Object.values(asistencia).forEach(ens => {
-                    elenco.forEach(m => {
-                        const inf = ens.detalle[m.id];
-                        if (inf && (inf.estado === "Puntual" || inf.estado === "Atrasado" || inf.estado === "Permiso tarde" || inf.estado === "Asistió")) {
-                            stats[m.id].asis++;
-                            if(inf.estado === "Atrasado" || (inf.estado==="Asistió" && inf.hora>ens.horaInicio)) stats[m.id].atrasos++;
-                        } else if (inf && inf.estado === "Permiso") stats[m.id].perm++;
+                    // Verificar si el ensayo ya ocurrió (si alguien tiene un estado diferente a Pendiente)
+                    let ensayoYaOcurrio = false;
+                    Object.values(ens.detalle).forEach(inf => {
+                        if(inf.estado !== "Pendiente") ensayoYaOcurrio = true;
                     });
+                    
+                    if (ensayoYaOcurrio) {
+                        tEnsayosActivos++;
+                        elenco.forEach(m => {
+                            const inf = ens.detalle[m.id];
+                            if (inf && (inf.estado === "Puntual" || inf.estado === "Atrasado" || inf.estado === "Permiso tarde" || inf.estado === "Asistió")) {
+                                stats[m.id].asis++;
+                                if(inf.estado === "Atrasado" || (inf.estado==="Asistió" && inf.hora>ens.horaInicio)) stats[m.id].atrasos++;
+                            } else if (inf && inf.estado === "Permiso") stats[m.id].perm++;
+                        });
+                    }
                 });
-                elenco.forEach(m => {
-                    stats[m.id].pctN = ((stats[m.id].asis / tEnsayos)*100).toFixed(0);
-                    stats[m.id].pctJ = (((stats[m.id].asis + stats[m.id].perm) / tEnsayos)*100).toFixed(0);
-                });
+                
+                if(tEnsayosActivos > 0) {
+                    elenco.forEach(m => {
+                        stats[m.id].pctN = ((stats[m.id].asis / tEnsayosActivos)*100).toFixed(0);
+                        stats[m.id].pctJ = (((stats[m.id].asis + stats[m.id].perm) / tEnsayosActivos)*100).toFixed(0);
+                    });
+                }
             }
-            return { stats, tEnsayos };
+            return { stats, tEnsayos: tEnsayosActivos };
         }
 
-        // Módulo: Renderizado de Interfaces
         function renderUI() {
             const { stats, tEnsayos } = obtenerEstadisticas();
 
-            // 1. VISTA PÚBLICA (Calendario)
+            // VISTA PÚBLICA
             const pubList = document.getElementById('listaHorariosPublicos');
             pubList.innerHTML = '';
-            let fechasOrd = Object.keys(asistencia).sort(); // Ascendente por defecto en público
+            let fechasOrd = Object.keys(asistencia).sort(); 
             fechasOrd.forEach(f => {
-                const h = asistencia[f].horaInicio || "19:00";
-                pubList.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span><b class="dia-semana">${obtenerDia(f)}</b> ${f}</span><span class="badge bg-primary fs-6">${h}</span></li>`;
+                const ens = asistencia[f];
+                pubList.innerHTML += `<li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span><b class="dia-semana">${obtenerDia(f)}</b> ${f}</span>
+                        <span class="badge bg-primary fs-6">${ens.horaInicio || "19:00"} - ${ens.horaFin || "21:30"}</span>
+                    </div>
+                    <small class="text-muted">🎭 Coreos: <span class="fst-italic">${ens.coreografias || "Por definir"}</span></small>
+                </li>`;
             });
 
             const selE = document.getElementById('permisoEns');
@@ -377,26 +538,21 @@
 
             const selM = document.getElementById('permisoMiem');
             selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
-            // Ordenamos alfabéticamente para que sea fácil buscarse
             [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
 
-            // 2. VISTA ADMIN (Tabla Principal)
-            // Aplicar orden a integrantes
+            // VISTA ADMIN
             let elencoOrd = [...elenco];
             if(sortMiem === 'pDesc') elencoOrd.sort((a,b) => stats[b.id].pctN - stats[a.id].pctN);
             if(sortMiem === 'pAsc') elencoOrd.sort((a,b) => stats[a.id].pctN - stats[b.id].pctN);
             if(sortMiem === 'aZ') elencoOrd.sort((a,b) => a.nombre.localeCompare(b.nombre));
             if(sortMiem === 'zA') elencoOrd.sort((a,b) => b.nombre.localeCompare(a.nombre));
 
-            // Cabeceras
             const head = document.getElementById('headerAdmin');
-            head.innerHTML = '<th class="align-middle">Día / Fecha</th>';
+            head.innerHTML = '<th class="align-middle" style="min-width: 160px;">Día / Fecha</th>';
             elencoOrd.forEach(m => head.innerHTML += `<th><div class="nombre-corto">${formatearNombre(m.nombre)}</div></th>`);
 
-            // Cuerpo
             const body = document.getElementById('cuerpoAdmin');
             body.innerHTML = '';
-            
             let fAdminOrd = Object.keys(asistencia).sort();
             if(sortFechas === 'desc') fAdminOrd.reverse();
 
@@ -405,8 +561,9 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td>
                     <div class="d-flex flex-column align-items-center">
-                        <span class="dia-semana">${obtenerDia(f)} - ${ens.horaInicio}</span>
+                        <span class="dia-semana">${obtenerDia(f)} (${ens.horaInicio}-${ens.horaFin||'21:30'})</span>
                         <strong class="mb-1">${f}</strong>
+                        <small class="text-muted fst-italic mb-1 text-truncate" style="max-width: 140px;">${ens.coreografias || 'Por definir'}</small>
                         <div class="d-flex gap-1">
                             <button class="btn btn-sm btn-outline-dark btn-edi" data-fecha="${f}">✏️</button>
                             <button class="btn btn-sm btn-success btn-scan" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
@@ -415,9 +572,10 @@
                 </td>`;
                 
                 elencoOrd.forEach(m => {
-                    const info = ens.detalle[m.id] || { estado: "Faltó", hora: "" };
+                    const info = ens.detalle[m.id] || { estado: "Pendiente", hora: "-" };
                     const td = document.createElement('td');
-                    if (info.estado === "Puntual" || (info.estado === "Asistió" && info.hora <= ens.horaInicio)) { td.className="estado-puntual"; td.innerHTML=`✔ Puntual<br><small>${info.hora}</small>`; }
+                    if (info.estado === "Pendiente") { td.className="bg-light text-muted"; td.innerHTML=`<small>-</small>`; }
+                    else if (info.estado === "Puntual" || (info.estado === "Asistió" && info.hora <= ens.horaInicio)) { td.className="estado-puntual"; td.innerHTML=`✔ Puntual<br><small>${info.hora}</small>`; }
                     else if (info.estado === "Atrasado" || (info.estado === "Asistió" && info.hora > ens.horaInicio)) { td.className="estado-atrasado"; td.innerHTML=`⚠️ Atraso<br><small>${info.hora}</small>`; }
                     else if (info.estado === "Permiso tarde") { td.className="estado-permiso-tarde"; td.innerHTML=`🕒 P. Tarde<br><small class="text-truncate d-inline-block" style="max-width:70px;">${info.hora}</small>`; }
                     else if (info.estado === "Permiso") { td.className="estado-permiso"; td.innerHTML=`P. Falta<br><small class="text-truncate d-inline-block" style="max-width:70px;">${info.hora}</small>`; }
@@ -427,27 +585,32 @@
                 body.appendChild(tr);
             });
 
-            // Footer
             if(tEnsayos > 0) {
                 const fN = document.getElementById('footAsisNeto'); fN.innerHTML = '<td>% Asistencias</td>';
                 const fJ = document.getElementById('footAsisJust'); fJ.innerHTML = '<td>% (+ Permisos)</td>';
                 const fA = document.getElementById('footAtrasos'); fA.innerHTML = '<td>🔴 Atrasos Injusti.</td>';
-                
                 elencoOrd.forEach(m => {
                     fN.innerHTML += `<td class="text-success">${stats[m.id].pctN}%</td>`;
                     fJ.innerHTML += `<td class="text-warning">${stats[m.id].pctJ}%</td>`;
                     fA.innerHTML += `<td class="text-danger">${stats[m.id].atrasos}</td>`;
                 });
+            } else {
+                document.getElementById('footAsisNeto').innerHTML = '';
+                document.getElementById('footAsisJust').innerHTML = '';
+                document.getElementById('footAtrasos').innerHTML = '';
             }
         }
 
-        // Módulo: Buscador QR
+        const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
+        const formatearNombre = (full) => full.split(' ').slice(0, 2).join(' ');
+        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
+
+        // BUSCADOR QR
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             const res = document.getElementById('resultadosBusqueda');
             res.innerHTML = ''; document.getElementById('areaQR').style.display = 'none';
             if(val.length < 2) return;
-            
             elenco.filter(m => m.nombre.toLowerCase().includes(val)).slice(0, 5).forEach(m => {
                 const btn = document.createElement('button');
                 btn.className = "list-group-item list-group-item-action text-primary fw-bold";
@@ -463,70 +626,66 @@
             });
         });
 
-        // Módulo: Permisos Públicos
-        document.getElementById('permisoTipo').addEventListener('change', (e) => {
-            document.getElementById('divTolerancia').style.display = e.target.value === "Permiso tarde" ? "block" : "none";
-        });
+        // PERMISOS
+        document.getElementById('permisoTipo').addEventListener('change', (e) => { document.getElementById('divTolerancia').style.display = e.target.value === "Permiso tarde" ? "block" : "none"; });
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
             const id = document.getElementById('permisoMiem').value;
             const fecha = document.getElementById('permisoEns').value;
             const tipo = document.getElementById('permisoTipo').value;
             const tol = document.getElementById('permisoTolerancia').value;
             const razon = document.getElementById('permisoRazon').value;
-
             if(!id || !fecha || !razon) return alert("Completa todos los campos obligatorios.");
-
-            // Guardar en Bandeja
             const pId = 'p_' + Date.now();
             await set(ref(db, `permisos/${pId}`), { miemId: id, fecha, tipo, tolerancia: tol, razon, enviada: new Date().toISOString() });
-
-            // Actualizar ensayo en vivo
             const mes = fecha.substring(0, 7);
             const anotacion = tipo === "Permiso tarde" ? tol : razon.substring(0, 15)+"...";
             await update(ref(db, `ensayos/${mes}/${fecha}/detalle/${id}`), { estado: tipo, hora: anotacion });
-
             alert("Permiso registrado correctamente.");
             bootstrap.Modal.getInstance(document.getElementById('modalPermiso')).hide();
             cargarDatos();
         });
 
-        // Módulo: Operaciones de Admin (Crear/Editar Ensayo, Elenco, Bandeja)
+        // NUEVO ENSAYO
         document.getElementById('btnManageEnsayo').onclick = () => {
             const tb = document.getElementById('listaCreaModal'); tb.innerHTML = '';
+            document.getElementById('crearFecha').value = ''; document.getElementById('crearCoreos').value = '';
             elenco.forEach(m => {
                 tb.innerHTML += `<tr><td><small>${m.nombre}</small></td><td>
                     <select class="form-select form-select-sm sel-crea" data-id="${m.id}">
-                        <option value="Faltó">-- Faltó (Base) --</option>
+                        <option value="Pendiente">-- Pendiente (Base) --</option>
                         <option value="Permiso tarde">Tiene permiso tarde</option>
                         <option value="Permiso">Tiene permiso falta</option>
+                        <option value="Faltó">Faltó</option>
                     </select></td></tr>`;
             });
             new bootstrap.Modal(document.getElementById('modalCrearEnsayo')).show();
         };
-
         document.getElementById('btnSaveNuevoEnsayo').onclick = async () => {
             const f = document.getElementById('crearFecha').value;
-            const h = document.getElementById('crearHora').value;
+            const hIni = document.getElementById('crearHora').value;
+            const hFin = document.getElementById('crearHoraFin').value;
+            const coreos = document.getElementById('crearCoreos').value || "Por definir";
             if(!f) return;
             let det = {};
-            document.querySelectorAll('.sel-crea').forEach(s => det[s.getAttribute('data-id')] = { estado: s.value, hora: "" });
-            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { fecha: f, horaInicio: h, detalle: det });
+            document.querySelectorAll('.sel-crea').forEach(s => det[s.getAttribute('data-id')] = { estado: s.value, hora: (s.value==="Pendiente"?"-":"") });
+            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { fecha: f, horaInicio: hIni, horaFin: hFin, coreografias: coreos, detalle: det });
             bootstrap.Modal.getInstance(document.getElementById('modalCrearEnsayo')).hide();
             cargarDatos();
         };
 
+        // EDICIÓN MANUAL
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-edi')) {
                 const f = e.target.closest('.btn-edi').getAttribute('data-fecha');
                 const ens = asistencia[f];
                 document.getElementById('editFecha').value = f;
                 document.getElementById('editHoraInicio').value = ens.horaInicio;
-                
                 const tb = document.getElementById('listaEditModal'); tb.innerHTML = '';
                 elenco.forEach(m => {
-                    const inf = ens.detalle[m.id] || {estado:"Faltó", hora:""};
+                    const inf = ens.detalle[m.id] || {estado:"Pendiente", hora:"-"};
                     tb.innerHTML += `<tr><td><small>${m.nombre}</small></td>
                         <td><select class="form-select form-select-sm sel-edi" data-id="${m.id}">
+                            <option value="Pendiente" ${inf.estado==="Pendiente"?"selected":""}>Pendiente</option>
                             <option value="Puntual" ${inf.estado==="Puntual"?"selected":""}>Puntual</option>
                             <option value="Atrasado" ${inf.estado==="Atrasado"?"selected":""}>Atrasado</option>
                             <option value="Permiso tarde" ${inf.estado==="Permiso tarde"?"selected":""}>P. Tarde</option>
@@ -538,7 +697,6 @@
                 new bootstrap.Modal(document.getElementById('modalEdicion')).show();
             }
         });
-
         document.getElementById('btnSaveEdicion').onclick = async () => {
             const f = document.getElementById('editFecha').value;
             const h = document.getElementById('editHoraInicio').value;
@@ -553,7 +711,7 @@
             cargarDatos();
         };
 
-        // Elenco CRUD
+        // CRUD ELENCO
         document.getElementById('btnManageElenco').onclick = () => {
             const ul = document.getElementById('listaElencoCrud'); ul.innerHTML = '';
             elenco.forEach((m, i) => {
@@ -574,7 +732,7 @@
             }
         });
 
-        // Bandeja Permisos Admin
+        // BANDEJA Y PASS
         document.getElementById('btnManagePermisos').onclick = () => {
             const tb = document.getElementById('listaBandeja'); tb.innerHTML = '';
             Object.values(listaPermisos).sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
@@ -583,15 +741,13 @@
             });
             new bootstrap.Modal(document.getElementById('modalBandeja')).show();
         };
-
-        // Clave Admin
         document.getElementById('btnChangePass').onclick = () => new bootstrap.Modal(document.getElementById('modalPassword')).show();
         document.getElementById('btnGuardarPassword').onclick = async () => {
             const np = document.getElementById('nuevaPassword').value;
             if(np) { passAdmin = np; await set(ref(db, 'configuracion/password'), passAdmin); alert("Clave actualizada."); bootstrap.Modal.getInstance(document.getElementById('modalPassword')).hide(); }
         };
 
-        // Módulo: Escáner de QRs
+        // ESCÁNER QR
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-scan')) {
                 const b = e.target.closest('.btn-scan');
@@ -602,7 +758,6 @@
                 scanner.render(onScanSuccess);
             }
         });
-
         async function onScanSuccess(id) {
             if(scanner) scanner.pause();
             const miem = elenco.find(m => m.id === id);
@@ -614,14 +769,13 @@
 
             const now = new Date();
             const hrReal = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
-            
-            const prev = asistencia[scanConfig.fecha].detalle[id]?.estado || "Faltó";
+            const prev = asistencia[scanConfig.fecha].detalle[id]?.estado || "Pendiente";
             let fEst = "Puntual";
             if(hrReal > scanConfig.hora) fEst = (prev === "Permiso tarde") ? "Permiso tarde" : "Atrasado";
 
             try {
                 await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: fEst, hora: hrReal });
-                asistencia[scanConfig.fecha].detalle[id] = { estado: fEst, hora: hrReal }; // Auto-update local
+                asistencia[scanConfig.fecha].detalle[id] = { estado: fEst, hora: hrReal }; 
                 txt.className="scan-success-toast bg-success text-white"; txt.innerHTML = `✅ <b>${miem.nombre}</b><br><small>${fEst} (${hrReal})</small>`;
             } catch (er) { txt.className="scan-success-toast bg-danger text-white border-danger"; txt.innerHTML = "Error conexión"; }
 
@@ -629,10 +783,9 @@
         }
         document.getElementById('btnCloseScanner').onclick = () => { if(scanner) scanner.clear(); renderUI(); };
 
-        // Filtros y Ordenamiento Admin
+        // FILTROS
         document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
         document.getElementById('filtroMes').onchange = cargarDatos;
-        
         document.getElementById('sortFDesc').onclick = (e)=>{e.preventDefault(); sortFechas='desc'; renderUI();};
         document.getElementById('sortFAsc').onclick = (e)=>{e.preventDefault(); sortFechas='asc'; renderUI();};
         document.getElementById('sortMDesc').onclick = (e)=>{e.preventDefault(); sortMiem='pDesc'; renderUI();};
@@ -640,35 +793,37 @@
         document.getElementById('sortAz').onclick = (e)=>{e.preventDefault(); sortMiem='aZ'; renderUI();};
         document.getElementById('sortZa').onclick = (e)=>{e.preventDefault(); sortMiem='zA'; renderUI();};
 
-        // Exportar Excel
+        // EXPORTAR EXCEL
         document.getElementById('btnAdminExcel').onclick = async () => {
             const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Reporte');
-            ws.addRow(['Fecha', 'Hora Inicio', ...elenco.map(m => m.nombre)]);
+            ws.addRow(['Fecha', 'Hora Inicio', 'Hora Fin', 'Coreografías', ...elenco.map(m => m.nombre)]);
             
             let fs = Object.keys(asistencia).sort(); if(sortFechas==='desc') fs.reverse();
             fs.forEach(f => {
-                const ens = asistencia[f]; const row = [`${obtenerDia(f)} ${f}`, ens.horaInicio];
+                const ens = asistencia[f]; const row = [`${obtenerDia(f)} ${f}`, ens.horaInicio, ens.horaFin || '21:30', ens.coreografias || "TBD"];
                 elenco.forEach(m => {
-                    const i = ens.detalle[m.id]||{estado:"Faltó",hora:""};
-                    if(i.estado==="Puntual"||(i.estado==="Asistió"&&i.hora<=ens.horaInicio)) row.push(`Puntual (${i.hora})`);
+                    const i = ens.detalle[m.id]||{estado:"Pendiente",hora:"-"};
+                    if(i.estado==="Pendiente") row.push("-");
+                    else if(i.estado==="Puntual"||(i.estado==="Asistió"&&i.hora<=ens.horaInicio)) row.push(`Puntual (${i.hora})`);
                     else if(i.estado==="Atrasado"||(i.estado==="Asistió"&&i.hora>ens.horaInicio)) row.push(`Atrasado (${i.hora})`);
                     else if(i.estado==="Permiso tarde") row.push(`Permiso Tarde (${i.hora})`);
                     else if(i.estado==="Permiso") row.push("Permiso"); else row.push("Faltó");
                 });
                 const r = ws.addRow(row);
-                r.eachCell((c, col) => { if(col>2 && c.value) {
+                r.eachCell((c, col) => { if(col>4 && c.value) {
                     let v = c.value.toString();
                     if(v.includes("Puntual")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFC6EFCE'}};
                     else if(v.includes("Atrasado")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFCC99'}};
                     else if(v.includes("Permiso Tarde")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFB8CCE4'}};
                     else if(v.includes("Permiso")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFEB9C'}};
                     else if(v.includes("Faltó")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFC7CE'}};
+                    else if(v.includes("-")) c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF2F2F2'}}; // Gris claro para pendiente
                 }});
             });
-            const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_Tini_${document.getElementById('filtroMes').value}.xlsx`);
+            const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_Elenco_${document.getElementById('filtroMes').value}.xlsx`);
         };
 
-        // Módulo: Control de Navegación de Pestañas y Login
+        // LOGIN Y TABS
         document.getElementById('btnTabPublica').onclick = () => {
             document.getElementById('seccionPublica').classList.add('vista-activa');
             document.getElementById('seccionAdmin').classList.remove('vista-activa');
@@ -689,8 +844,5 @@
             } else alert("Contraseña incorrecta");
         };
 
-        // Arrancar Aplicación
         init();
     </script>
-</body>
-</html>
