@@ -616,7 +616,7 @@
             cargarDatos();
         };
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 8: GESTIÓN DE PERMISOS
         // ==========================================
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
@@ -647,14 +647,65 @@
             cargarDatos();
         });
 
+        // Abre el modal y dibuja la lista
         document.getElementById('btnManagePermisos').onclick = () => {
-            const tb = document.getElementById('listaBandeja'); tb.innerHTML = '';
-            Object.values(listaPermisos).sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
-                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
-                tb.innerHTML += `<tr><td>${p.fecha}</td><td>${nom}</td><td><span class="badge bg-warning text-dark">${p.tipo}</span></td><td><small>${p.razon}</small></td></tr>`;
-            });
+            actualizarListaBandeja();
             new bootstrap.Modal(document.getElementById('modalBandeja')).show();
         };
+
+        // Dibuja la lista de permisos en la bandeja
+        function actualizarListaBandeja() {
+            const tb = document.getElementById('listaBandeja'); 
+            tb.innerHTML = '';
+            
+            // Convertimos el objeto en array para poder extraer el ID único (pId) de cada permiso
+            const arrayPermisos = Object.entries(listaPermisos).map(([pId, data]) => ({ pId, ...data }));
+            
+            arrayPermisos.sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
+                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
+                tb.innerHTML += `<tr>
+                    <td class="align-middle">${p.fecha}</td>
+                    <td class="align-middle">${nom}</td>
+                    <td class="align-middle"><span class="badge bg-warning text-dark">${p.tipo}</span></td>
+                    <td class="d-flex justify-content-between align-items-center gap-2">
+                        <small class="text-truncate d-inline-block" style="max-width: 130px;" title="${p.razon}">${p.razon}</small>
+                        <button class="btn btn-sm btn-outline-dark py-0 px-1 btn-edit-permiso" data-pid="${p.pId}">✏️</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // Lógica para editar el motivo del permiso
+        document.addEventListener('click', async (e) => {
+            if(e.target.closest('.btn-edit-permiso')) {
+                const pId = e.target.closest('.btn-edit-permiso').dataset.pid;
+                const permiso = listaPermisos[pId];
+                if(!permiso) return;
+
+                const nuevaRazon = prompt("Editar motivo / justificación:", permiso.razon);
+                
+                if (nuevaRazon && nuevaRazon.trim() !== "" && nuevaRazon !== permiso.razon) {
+                    permiso.razon = nuevaRazon.trim();
+                    
+                    // 1. Actualizamos el motivo en la bóveda de permisos
+                    await set(ref(db, `permisos/${pId}/razon`), permiso.razon);
+                    
+                    // 2. Actualizamos la anotación en el ensayo correspondiente
+                    const mes = permiso.fecha.substring(0, 7);
+                    const anotacion = `${permiso.tipo}: ${permiso.razon}`.substring(0, 15) + "...";
+                    await set(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}/hora`), anotacion);
+                    
+                    // 3. Actualizamos la memoria temporal para que se vea el cambio sin recargar la página
+                    if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
+                        asistencia[permiso.fecha].detalle[permiso.miemId].hora = anotacion;
+                    }
+                    
+                    // Refrescamos la bandeja y la tabla principal
+                    actualizarListaBandeja();
+                    renderUI();
+                }
+            }
+        });
 
         // ==========================================
         // MÓDULO 9: CRUD ELENCO Y EXPORTACIÓN EXCEL
