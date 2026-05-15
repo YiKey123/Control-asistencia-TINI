@@ -43,8 +43,9 @@
 
     <div id="loadingScreen">
         <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;"></div>
-        <h5 id="statusText" class="fw-bold text-dark">Conectando con la base de datos...</h5>
+        <h5 id="statusText" class="fw-bold text-dark">Cargando uwu</h5>
     </div>
+
 
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm mb-4">
         <div class="container-fluid">
@@ -163,6 +164,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script type="module">
+        
         // ==========================================
         // MÓDULO 1: CONFIGURACIÓN FIREBASE
         // ==========================================
@@ -232,17 +234,15 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
         
-        // Nueva lógica: Ahora recibe al miembro completo (m)
         const formatearNombre = (m) => {
             if (m.apodo && m.apodo.length > 0) {
                 return m.apodo.join('<br>');
             }
-            // Regla de respaldo (1er y 3er nombre) si no hay apodo configurado
             const partes = m.nombre.trim().split(' ');
             if (partes.length === 1) return partes[0];
             if (partes.length === 2) return `${partes[0]}<br>${partes[1]}`;
@@ -297,6 +297,11 @@
                     await set(ref(db, 'configuracion/elenco'), elenco);
                 }
 
+                if (elenco.length > 0) {
+                    document.getElementById('statusText').innerText = "Un poco más :b";
+                    await subirHistorial();
+                }
+
                 document.getElementById('loadingScreen').style.display = 'none';
                 await cargarDatos();
             } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión.</span>"; }
@@ -344,7 +349,7 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 5: RENDERIZADO DE INTERFAZ
         // ==========================================
         function renderUI() {
@@ -420,7 +425,7 @@
             [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
         }
 
-                        // ==========================================
+        // ==========================================
         // MÓDULO 6: CÁMARA TRASERA Y QR
         // ==========================================
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
@@ -656,7 +661,7 @@
             cargarDatos();
         };
 
-                                // ==========================================
+        // ==========================================
         // MÓDULO 8: GESTIÓN DE PERMISOS
         // ==========================================
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
@@ -773,7 +778,7 @@
             }
         });
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 9: CRUD ELENCO Y EXPORTACIÓN EXCEL
         // ==========================================
         let miemEditandoId = null;
