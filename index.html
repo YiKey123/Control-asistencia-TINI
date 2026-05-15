@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Asistencia - Elenco Tini</title>
+    <title>Control de Asistencia - Elenco TINI</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -173,7 +173,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-        <script type="module">
+            <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, set, get, update, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
@@ -199,41 +199,30 @@
         let sortFechas = 'desc'; 
         let sortMiem = 'none';
 
-        // ==========================================
-        // 1. DATOS BASE Y HISTORIAL EXCEL
-        // ==========================================
+        // LISTA BASE
         const integrantesExcel = [
             "Adrian Mauro Balderrama Fernandez", "Alejandra Patricia Jemio Berrios", 
             "Ana Camila Joicet Vallejos Rojas", "Ana Yolanda Arancibia Castro", 
-            "Andrea Nicol Gamarra Molina", "Camila Alejandra Duran Sologuren", 
-            "Diego Garcia Veizaga", "Fabiana Andrea De La Barra Gallo", 
-            "Fabiana Belen Aduviri Chura", "Fabiana Miranda", 
-            "Fabiola Ariel Navarro Moreno", "Franco", 
-            "Gabriel Carlos Leaño Gonzales", "Gabriela Stephanie Altamirano Begazo", 
+            "Andrea Nicol Gamarra Molina", "Andrés García",
+            "Camila Alejandra Duran Sologuren", "Carlos Vladimir Chávez Castro",
+            "Carolina Mendez Espinoza", "Claudia Belén Del Pozo Velasco",
+            "Diego Andrés Gamarra Carrasco", "Diego Garcia Veizaga",
+            "Fernanda", "Gabriel Carlos Leaño Gonzales",
             "Giann Kalef Ledezma Ramos", "Gustavo Alfredo Cespedes Cespedes", 
-            "Ian Fredy Gallardo Mendieta", "Karen Flores", 
-            "Liz Gloria Nuñez Miranda", "Luciana Belen Casanova Velarde", 
-            "Luciana Belen Fernandez Venegas", "Mauricio Alejandro Casanova Velarde", 
-            "Micaela Andrea Soliz Rivas", "Milton Adrian Rendon Quisbert", "Natalia Burgoa"
+            "Indira Conde", "Karen Flores", 
+            "Luciana Belen Fernandez Venegas", "Milton Adrian Rendon Quisbert",
+            "Natalia Estefania Farel Hervas", "Natalia Fernanda Paucara Valda", 
+            "Paola Mikaela Camacho Moller", "Rafael",
+            "Rodrigo García Veizaga", "Simoné Cerruto Orozco",
+            "Sophie Fernanda Pérez Velasquez", "Valeria Patricia Delgado Silva"
+            
         ];
 
+        // HISTORIAL DE ENSAYOS CON TUS DATOS REALES
         const historialEnsayos = [
-            {
-                fecha: "2026-05-08", horaInicio: "19:00", horaFin: "21:00", coreografias: "A quien le importa",
-                // Camila (-1), Ian (0)
-                valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1]
-            },
-            {
-                fecha: "2026-05-10", horaInicio: "15:00", horaFin: "18:00", coreografias: "Livin' la vida loca y Azúcar Amargo",
-                // Camila (-1), Ian (-1)
-                valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1]
-            },
-            {
-                fecha: "2026-05-13", horaInicio: "18:00", horaFin: "20:00", coreografias: "Cuando seas grande",
-                // Camila (1), Ian (-1)
-                valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1]
-            },
-            // LOS DEMÁS ESTÁN VACÍOS PARA QUE MARQUEN "PENDIENTE"
+            { fecha: "2026-05-08", horaInicio: "19:00", horaFin: "21:00", coreografias: "A quien le importa", valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1] },
+            { fecha: "2026-05-10", horaInicio: "15:00", horaFin: "18:00", coreografias: "Livin' la vida loca y Azúcar Amargo", valores: [1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1] },
+            { fecha: "2026-05-13", horaInicio: "18:00", horaFin: "20:00", coreografias: "Cuando seas grande", valores: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1] },
             { fecha: "2026-05-15", horaInicio: "18:30", horaFin: "21:00", coreografias: "La Muralla / Torero", valores: [] },
             { fecha: "2026-05-17", horaInicio: "15:00", horaFin: "19:00", coreografias: "Caprichosa / Oye Mi amor / Claridad", valores: [] },
             { fecha: "2026-05-19", horaInicio: "18:00", horaFin: "20:00", coreografias: "Ahora te puedes marchar", valores: [] },
@@ -275,8 +264,6 @@
                 const ensayoRef = ref(db, `ensayos/${mesRuta}/${ens.fecha}`);
                 const eSnap = await get(ensayoRef);
                 
-                // Solo lo subimos si ese ensayo NO existe en Firebase
-                // Así no borramos las cosas que modifiques manualmente después.
                 if (!eSnap.exists()) {
                     let detalle = {};
                     elencoDB.forEach((miembro, index) => {
@@ -301,19 +288,18 @@
                 if(eSnap.exists()) {
                     elenco = eSnap.val();
                 } else {
-                    // Si el elenco no existe, lo creamos con los nombres corregidos
                     elenco = integrantesExcel.map(n => ({ id: generarId(), nombre: n }));
                     await set(ref(db, 'configuracion/elenco'), elenco);
                 }
 
                 if (elenco.length > 0) {
-                    document.getElementById('statusText').innerText = "Traduciendo y subiendo historial Excel...";
+                    document.getElementById('statusText').innerText = "Cargando :b";
                     await subirHistorial();
                 }
 
                 document.getElementById('loadingScreen').style.display = 'none';
                 await cargarDatos();
-            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error conectando a Firebase.</span>"; }
+            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión a la base de datos.</span>"; }
         }
 
         async function cargarDatos() {
@@ -342,7 +328,6 @@
                         elenco.forEach(m => {
                             const inf = ens.detalle[m.id];
                             if (inf && inf.estado !== "Pendiente") {
-                                // LÓGICA DE PUNTOS
                                 if (inf.estado === "Puntual") stats[m.id].puntaje += 1;
                                 if (inf.estado === "Faltó") stats[m.id].puntaje -= 1;
 
@@ -370,7 +355,6 @@
         function renderUI() {
             const { stats, tEnsayos } = obtenerEstadisticas();
 
-            // VISTA PÚBLICA
             const pubList = document.getElementById('listaHorariosPublicos');
             pubList.innerHTML = '';
             let fechasOrd = Object.keys(asistencia).sort(); 
@@ -393,7 +377,6 @@
             selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
             [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
 
-            // VISTA ADMIN
             let elencoOrd = [...elenco];
             if(sortMiem === 'pDesc') elencoOrd.sort((a,b) => stats[b.id].pctN - stats[a.id].pctN);
             if(sortMiem === 'pAsc') elencoOrd.sort((a,b) => stats[a.id].pctN - stats[b.id].pctN);
@@ -461,7 +444,6 @@
             }
         }
 
-        // BUSCADOR QR Y GENERACIÓN
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             const res = document.getElementById('resultadosBusqueda');
@@ -482,7 +464,6 @@
             });
         });
 
-        // DESCARGAR IMAGEN QR
         document.getElementById('btnDescargarQR').addEventListener('click', () => {
             const nombre = document.getElementById('displayNombre').innerText;
             const qrCanvasOriginal = document.querySelector('#qrcode canvas');
@@ -516,7 +497,6 @@
             }, "image/jpeg");
         });
 
-        // PERMISOS
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
             const id = document.getElementById('permisoMiem').value;
             const fecha = document.getElementById('permisoEns').value;
@@ -534,7 +514,6 @@
             cargarDatos();
         });
 
-        // NUEVO ENSAYO
         document.getElementById('btnManageEnsayo').onclick = () => {
             const tb = document.getElementById('listaCreaModal'); tb.innerHTML = '';
             document.getElementById('crearFecha').value = ''; document.getElementById('crearCoreos').value = '';
@@ -549,6 +528,7 @@
             });
             new bootstrap.Modal(document.getElementById('modalCrearEnsayo')).show();
         };
+
         document.getElementById('btnSaveNuevoEnsayo').onclick = async () => {
             const f = document.getElementById('crearFecha').value;
             const hIni = document.getElementById('crearHora').value;
@@ -562,7 +542,6 @@
             cargarDatos();
         };
 
-        // EDICIÓN MANUAL
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-edi')) {
                 const f = e.target.closest('.btn-edi').getAttribute('data-fecha');
@@ -586,6 +565,7 @@
                 new bootstrap.Modal(document.getElementById('modalEdicion')).show();
             }
         });
+
         document.getElementById('btnSaveEdicion').onclick = async () => {
             const f = document.getElementById('editFecha').value;
             const h = document.getElementById('editHoraInicio').value;
@@ -600,9 +580,9 @@
             cargarDatos();
         };
 
-        // CRUD ELENCO (CORREGIDO Y ORDEN ALFABÉTICO)
+        // CRUD ELENCO CON ORDEN Y ADVERTENCIA
         document.getElementById('btnManageElenco').onclick = () => {
-            elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); // Ordenar antes de mostrar
+            elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
             actualizarListaVisualElenco();
             new bootstrap.Modal(document.getElementById('modalElenco')).show();
         };
@@ -612,22 +592,20 @@
             if(n) {
                 const nuevoMiem = { id: generarId(), nombre: n };
                 elenco.push(nuevoMiem);
-                elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); // Ordenar al agregar
+                elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
                 try {
                     await set(ref(db, 'configuracion/elenco'), elenco);
                     document.getElementById('nuevoNombre').value = '';
                     actualizarListaVisualElenco(); 
                     alert("Miembro agregado. Al terminar de editar, recarga la página (F5) para actualizar las tablas.");
-                } catch (e) {
-                    console.error("Error al agregar:", e);
-                }
+                } catch (e) { console.error("Error al agregar:", e); }
             }
         };
 
         document.addEventListener('click', async (e) => {
             if(e.target.closest('.btn-del-m')){
                 const i = e.target.closest('.btn-del-m').dataset.i;
-                if(confirm(`¿Seguro que deseas eliminar a ${elenco[i].nombre}?`)) {
+                if(confirm(`⚠️ ADVERTENCIA ⚠️\n¿Seguro que deseas eliminar a ${elenco[i].nombre}?\nSi lo haces, se perderán todas sus asistencias registradas y su código QR dejará de funcionar.`)) {
                     elenco.splice(i, 1);
                     await set(ref(db, 'configuracion/elenco'), elenco);
                     actualizarListaVisualElenco();
@@ -638,44 +616,7 @@
                 const nn = prompt("Editar nombre:", elenco[i].nombre);
                 if(nn && nn.trim() !== "") {
                     elenco[i].nombre = nn.trim();
-                    elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); // Ordenar al editar
-                    await set(ref(db, 'configuracion/elenco'), elenco);
-                    actualizarListaVisualElenco();
-                }
-            }
-        });
-
-        // Función para refrescar la lista internamente sin pantalla negra
-        function actualizarListaVisualElenco() {
-            const ul = document.getElementById('listaElencoCrud');
-            ul.innerHTML = '';
-            elenco.forEach((m, i) => {
-                ul.innerHTML += `
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>${m.nombre}</span>
-                    <div>
-                        <button class="btn btn-sm btn-warning btn-edit-m" data-i="${i}">✏️</button>
-                        <button class="btn btn-sm btn-danger btn-del-m" data-i="${i}">×</button>
-                    </div>
-                </li>`;
-            });
-        }
-
-
-        document.addEventListener('click', async (e) => {
-            if(e.target.closest('.btn-del-m')){
-                const i = e.target.closest('.btn-del-m').dataset.i;
-                if(confirm(`¿Eliminar a ${elenco[i].nombre}?`)) {
-                    elenco.splice(i, 1);
-                    await set(ref(db, 'configuracion/elenco'), elenco);
-                    actualizarListaVisualElenco();
-                }
-            }
-            if(e.target.closest('.btn-edit-m')){
-                const i = e.target.closest('.btn-edit-m').dataset.i;
-                const nn = prompt("Nuevo nombre:", elenco[i].nombre);
-                if(nn && nn.trim() !== "") {
-                    elenco[i].nombre = nn.trim();
+                    elenco.sort((a,b) => a.nombre.localeCompare(b.nombre)); 
                     await set(ref(db, 'configuracion/elenco'), elenco);
                     actualizarListaVisualElenco();
                 }
@@ -697,8 +638,6 @@
             });
         }
 
-
-        // BANDEJA Y PASS
         document.getElementById('btnManagePermisos').onclick = () => {
             const tb = document.getElementById('listaBandeja'); tb.innerHTML = '';
             Object.values(listaPermisos).sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
@@ -707,13 +646,13 @@
             });
             new bootstrap.Modal(document.getElementById('modalBandeja')).show();
         };
+
         document.getElementById('btnChangePass').onclick = () => new bootstrap.Modal(document.getElementById('modalPassword')).show();
         document.getElementById('btnGuardarPassword').onclick = async () => {
             const np = document.getElementById('nuevaPassword').value;
             if(np) { passAdmin = np; await set(ref(db, 'configuracion/password'), passAdmin); alert("Clave actualizada."); bootstrap.Modal.getInstance(document.getElementById('modalPassword')).hide(); }
         };
 
-        // ESCÁNER QR
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-scan')) {
                 const b = e.target.closest('.btn-scan');
@@ -724,6 +663,7 @@
                 scanner.render(onScanSuccess);
             }
         });
+
         async function onScanSuccess(id) {
             if(scanner) scanner.pause();
             const miem = elenco.find(m => m.id === id);
@@ -747,9 +687,10 @@
 
             setTimeout(() => { res.style.display='none'; if(scanner) scanner.resume(); }, 1500);
         }
+
         document.getElementById('btnCloseScanner').onclick = () => { if(scanner) scanner.clear(); renderUI(); };
 
-        // FILTROS
+        // BOTONES ORDENAR Y FILTRAR
         document.getElementById('filtroMes').value = new Date().toISOString().substring(0, 7);
         document.getElementById('filtroMes').onchange = cargarDatos;
         document.getElementById('sortFDesc').onclick = (e)=>{e.preventDefault(); sortFechas='desc'; renderUI();};
@@ -759,7 +700,6 @@
         document.getElementById('sortAz').onclick = (e)=>{e.preventDefault(); sortMiem='aZ'; renderUI();};
         document.getElementById('sortZa').onclick = (e)=>{e.preventDefault(); sortMiem='zA'; renderUI();};
 
-        // EXPORTAR EXCEL
         document.getElementById('btnAdminExcel').onclick = async () => {
             const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Reporte');
             ws.addRow(['Fecha', 'Hora Inicio', 'Hora Fin', 'Coreografías', ...elenco.map(m => m.nombre)]);
@@ -789,7 +729,6 @@
             const buf = await wb.xlsx.writeBuffer(); saveAs(new Blob([buf]), `Reporte_Elenco_${document.getElementById('filtroMes').value}.xlsx`);
         };
 
-        // LOGIN Y TABS
         document.getElementById('btnTabPublica').onclick = () => {
             document.getElementById('seccionPublica').classList.add('vista-activa');
             document.getElementById('seccionAdmin').classList.remove('vista-activa');
@@ -797,7 +736,9 @@
             document.getElementById('btnTabPublica').classList.remove('btn-outline-light');
             document.getElementById('btnTabAdmin').classList.remove('active');
         };
+
         document.getElementById('btnTabAdmin').onclick = () => new bootstrap.Modal(document.getElementById('modalLogin')).show();
+        
         document.getElementById('btnDoLogin').onclick = () => {
             if(document.getElementById('loginPass').value === passAdmin) {
                 bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide();
@@ -810,7 +751,7 @@
             } else alert("Contraseña incorrecta");
         };
 
-        //Inicialización de la app
+        // INICIA EL SISTEMA
         init();
     </script>
 </body>
