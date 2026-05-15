@@ -573,7 +573,7 @@
             renderUI();
         });
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 7: GESTIÓN DE ENSAYOS Y EDICIÓN
         // ==========================================
         document.getElementById('btnManageEnsayo').onclick = () => {
@@ -585,7 +585,8 @@
             document.getElementById('crearLugar').value = '';
             
             elenco.forEach(m => {
-                tb.innerHTML += `<tr><td><small>${formatearNombre(m.nombre)}</small></td><td>
+                // CORRECCIÓN: formatearNombre(m) en lugar de formatearNombre(m.nombre)
+                tb.innerHTML += `<tr><td><small>${formatearNombre(m)}</small></td><td>
                     <select class="form-select form-select-sm sel-crea" data-id="${m.id}">
                         <option value="Pendiente">-- Pendiente --</option>
                         <option value="Asistió">Asistió</option>
@@ -631,7 +632,8 @@
                 const tb = document.getElementById('listaEditModal'); tb.innerHTML = '';
                 elenco.forEach(m => {
                     const inf = ens.detalle[m.id] || {estado:"Pendiente", hora:"-"};
-                    tb.innerHTML += `<tr><td><small>${formatearNombre(m.nombre)}</small></td>
+                    // CORRECCIÓN: formatearNombre(m) en lugar de formatearNombre(m.nombre)
+                    tb.innerHTML += `<tr><td><small>${formatearNombre(m)}</small></td>
                         <td><select class="form-select form-select-sm sel-edi" data-id="${m.id}">
                             <option value="Pendiente" ${inf.estado==="Pendiente"?"selected":""}>Pendiente</option>
                             <option value="Asistió" ${inf.estado==="Asistió"?"selected":""}>Asistió</option>
