@@ -222,12 +222,10 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
-        
-        // Función para aplicar tu regla de 1er y 3er nombre (con salto de línea)
         const formatearNombre = (full) => {
             const partes = full.trim().split(' ');
             if (partes.length === 1) return partes[0];
@@ -236,76 +234,23 @@
             return full;
         };
 
-        const obtenerDia = (f) => { const d = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; const p = f.split('-'); return d[new Date(p[0], p[1]-1, p[2]).getDay()]; };
-
         function traducirAsistencia(valor, horaInicio) {
             if (valor === 1) {
                 let [h, m] = horaInicio.split(':').map(Number);
                 let totalMins = h * 60 + m - 10;
                 let newH = Math.floor(totalMins / 60).toString().padStart(2, '0');
                 let newM = (totalMins % 60).toString().padStart(2, '0');
-                return { estado: "Puntual", hora: `${newH}:${newM}` };
+                return { estado: "Asistió", hora: `${newH}:${newM}` };
             }
-            if (valor === 0) return { estado: "Permiso", hora: "Falta Justificada" };
+            if (valor === 0) return { estado: "Permiso", hora: "Justificado" };
             if (valor === -1) return { estado: "Faltó", hora: "" };
             return { estado: "Pendiente", hora: "-" }; 
-        }
-
-        async function subirHistorial() {
-            let elencoDB = [...elenco];
-            elencoDB.sort((a,b) => a.nombre.localeCompare(b.nombre));
-
-            for (const ens of historialEnsayos) {
-                const mesRuta = ens.fecha.substring(0, 7);
-                const ensayoRef = ref(db, `ensayos/${mesRuta}/${ens.fecha}`);
-                const eSnap = await get(ensayoRef);
-                if (!eSnap.exists()) {
-                    let detalle = {};
-                    elencoDB.forEach((miembro, index) => {
-                        let valorExcel = (ens.valores && ens.valores.length > 0) ? ens.valores[index] : null;
-                        detalle[miembro.id] = traducirAsistencia(valorExcel, ens.horaInicio);
-                    });
-                    await set(ensayoRef, { fecha: ens.fecha, horaInicio: ens.horaInicio, horaFin: ens.horaFin, coreografias: ens.coreografias, lugar: "", detalle: detalle });
-                }
-            }
-        }
-
-        async function init() {
-            try {
-                const pSnap = await get(child(ref(db), 'configuracion/password'));
-                if(pSnap.exists()) passAdmin = pSnap.val();
-                
-                const eSnap = await get(child(ref(db), 'configuracion/elenco'));
-                if(eSnap.exists()) {
-                    elenco = eSnap.val();
-                } else {
-                    elenco = integrantesExcel.map(n => ({ id: generarId(), nombre: n }));
-                    await set(ref(db, 'configuracion/elenco'), elenco);
-                }
-
-                if (elenco.length > 0) {
-                    document.getElementById('statusText').innerText = "Cargando :b";
-                    await subirHistorial();
-                }
-
-                document.getElementById('loadingScreen').style.display = 'none';
-                await cargarDatos();
-            } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión a la base de datos.</span>"; }
-        }
-
-        async function cargarDatos() {
-            const mes = document.getElementById('filtroMes').value || new Date().toISOString().substring(0, 7);
-            const snap = await get(ref(db, `ensayos/${mes}`));
-            asistencia = snap.exists() ? snap.val() : {};
-            const pSnap = await get(ref(db, `permisos`));
-            listaPermisos = pSnap.exists() ? pSnap.val() : {};
-            renderUI();
         }
 
         function obtenerEstadisticas() {
             let stats = {};
             let tEnsayosActivos = 0;
-            elenco.forEach(m => stats[m.id] = { asis: 0, perm: 0, atrasos: 0, pctN: 0, pctJ: 0, puntaje: 0 });
+            elenco.forEach(m => stats[m.id] = { asis: 0, perm: 0, pctN: 0, pctJ: 0, puntaje: 0 });
 
             if(Object.keys(asistencia).length > 0) {
                 Object.values(asistencia).forEach(ens => {
@@ -317,13 +262,9 @@
                         elenco.forEach(m => {
                             const inf = ens.detalle[m.id];
                             if (inf && inf.estado !== "Pendiente") {
-                                if (inf.estado === "Puntual") stats[m.id].puntaje += 1;
-                                if (inf.estado === "Faltó") stats[m.id].puntaje -= 1;
-
-                                if (inf.estado === "Puntual" || inf.estado === "Atrasado" || inf.estado === "Permiso tarde" || inf.estado === "Asistió") {
-                                    stats[m.id].asis++;
-                                    if(inf.estado === "Atrasado" || (inf.estado==="Asistió" && inf.hora>ens.horaInicio)) stats[m.id].atrasos++;
-                                } else if (inf.estado === "Permiso") { stats[m.id].perm++; }
+                                if (inf.estado === "Asistió") { stats[m.id].puntaje += 1; stats[m.id].asis++; }
+                                if (inf.estado === "Permiso") { stats[m.id].perm++; }
+                                if (inf.estado === "Faltó") { stats[m.id].puntaje -= 1; }
                             }
                         });
                     }
@@ -340,66 +281,30 @@
         }
 
                 // ==========================================
-        // MÓDULO 5: RENDERIZADO DE INTERFAZ (TABLA INVERTIDA)
+        // MÓDULO 5: RENDERIZADO DE INTERFAZ
         // ==========================================
         function renderUI() {
             const { stats, tEnsayos } = obtenerEstadisticas();
-
-            // Vista Pública 
-            const pubList = document.getElementById('listaHorariosPublicos');
-            pubList.innerHTML = '';
-            let fechasTodas = Object.keys(asistencia).sort(); 
-            fechasTodas.forEach(f => {
-                const ens = asistencia[f];
-                const lugarMostrado = ens.lugar ? ens.lugar : "Por definir";
-                pubList.innerHTML += `<li class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span><b class="dia-semana">${obtenerDia(f)}</b> ${f}</span>
-                        <span class="badge bg-primary fs-6">${ens.horaInicio || "19:00"} - ${ens.horaFin || "21:30"}</span>
-                    </div>
-                    <small class="text-muted d-block">🎭 Coreos: <span class="fst-italic">${ens.coreografias || "Por definir"}</span></small>
-                    <small class="text-primary fw-bold">📍 Lugar: ${lugarMostrado}</small>
-                </li>`;
-            });
-
-            const selE = document.getElementById('permisoEns');
-            selE.innerHTML = '<option value="">-- Elige la fecha --</option>';
-            fechasTodas.forEach(f => selE.innerHTML += `<option value="${f}">${obtenerDia(f)} ${f}</option>`);
-
-            const selM = document.getElementById('permisoMiem');
-            selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
-            [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
-
-            // Vista Admin - Tabla Invertida
-            let elencoOrd = [...elenco];
-            if(sortMiem === 'pDesc') elencoOrd.sort((a,b) => stats[b.id].pctN - stats[a.id].pctN);
-            if(sortMiem === 'pAsc') elencoOrd.sort((a,b) => stats[a.id].pctN - stats[b.id].pctN);
-            if(sortMiem === 'aZ') elencoOrd.sort((a,b) => a.nombre.localeCompare(b.nombre));
-            if(sortMiem === 'zA') elencoOrd.sort((a,b) => b.nombre.localeCompare(a.nombre));
-
-            const head = document.getElementById('headerAdmin');
-            // Ancho reducido significativamente (de 150px a 90px)
-            head.innerHTML = '<th class="align-middle text-start" style="min-width: 90px;">👥 Integrante</th>';
-            
-            fechasTodas.forEach(f => {
-                const ens = asistencia[f];
-                head.innerHTML += `<th>
-                    <div class="d-flex flex-column align-items-center" style="min-width:110px;">
-                        <span class="dia-semana small">${obtenerDia(f)}</span>
-                        <strong>${f.split('-').slice(1).join('/')}</strong>
-                        <small class="text-muted fst-italic mb-1 text-truncate" style="max-width: 90px;" title="${ens.coreografias}">${ens.coreografias || 'TBD'}</small>
-                        <div class="d-flex gap-1 mt-1">
-                            <button class="btn btn-sm btn-outline-dark btn-edi py-0 px-1" data-fecha="${f}">✏️</button>
-                            <button class="btn btn-sm btn-success btn-scan py-0 px-1" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
-                        </div>
-                    </div>
-                </th>`;
-            });
-            head.innerHTML += `<th>% Asist.</th><th>% (+Perm)</th><th>🔴 Atr.</th><th>⭐ Pts</th>`;
-
             const body = document.getElementById('cuerpoAdmin');
+            const head = document.getElementById('headerAdmin');
+            let fechasTodas = Object.keys(asistencia).sort();
+            
+            // Render Header
+            head.innerHTML = '<th class="text-start" style="min-width: 90px;">👥 Integrante</th>';
+            fechasTodas.forEach(f => {
+                const ens = asistencia[f];
+                head.innerHTML += `<th><div class="d-flex flex-column align-items-center" style="min-width:100px;">
+                    <span class="small">${obtenerDia(f)}</span><strong>${f.split('-').slice(1).join('/')}</strong>
+                    <div class="d-flex gap-1 mt-1">
+                        <button class="btn btn-sm btn-outline-dark btn-edi py-0 px-1" data-fecha="${f}">✏️</button>
+                        <button class="btn btn-sm btn-success btn-scan py-0 px-1" data-fecha="${f}" data-hora="${ens.horaInicio}">📷</button>
+                    </div></div></th>`;
+            });
+            head.innerHTML += `<th>% Asis</th><th>% Total</th><th>⭐ Pts</th>`;
+
+            // Render Rows
             body.innerHTML = '';
-            elencoOrd.forEach(m => {
+            elenco.forEach(m => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<th class="text-start align-middle bg-white nombre-corto">${formatearNombre(m.nombre)}</th>`;
                 
@@ -407,27 +312,32 @@
                     const ens = asistencia[f];
                     const info = ens.detalle[m.id] || { estado: "Pendiente", hora: "-" };
                     const td = document.createElement('td');
-                    if (info.estado === "Pendiente") { td.className="bg-light text-muted align-middle"; td.innerHTML=`<small>-</small>`; }
-                    else if (info.estado === "Puntual" || (info.estado === "Asistió" && info.hora <= ens.horaInicio)) { td.className="estado-puntual align-middle"; td.innerHTML=`✔<br><small>${info.hora}</small>`; }
-                    else if (info.estado === "Atrasado" || (info.estado === "Asistió" && info.hora > ens.horaInicio)) { td.className="estado-atrasado align-middle"; td.innerHTML=`⚠️<br><small>${info.hora}</small>`; }
-                    else if (info.estado === "Permiso tarde") { td.className="estado-permiso-tarde align-middle"; td.innerHTML=`🕒 PT<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:60px;">${info.hora}</small>`; }
-                    else if (info.estado === "Permiso") { td.className="estado-permiso align-middle"; td.innerHTML=`PF<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:60px;">${info.hora}</small>`; }
-                    else { td.className="estado-falto align-middle"; td.textContent="✘"; }
+                    td.className = "align-middle";
+                    
+                    if (info.estado === "Pendiente") { td.className += " bg-light text-muted"; td.innerHTML = "-"; }
+                    else if (info.estado === "Asistió") { td.className += " estado-asistio"; td.innerHTML = `✔<br><small>${info.hora}</small>`; }
+                    else if (info.estado === "Permiso") { td.className += " estado-permiso"; td.innerHTML = `●<br><small>Just.</small>`; }
+                    else { td.className += " estado-falto"; td.innerHTML = `✘`; }
                     tr.appendChild(td);
                 });
 
-                if(tEnsayos > 0) {
-                    const pts = stats[m.id].puntaje;
-                    const colorP = pts > 0 ? 'text-success' : (pts < 0 ? 'text-danger' : 'text-dark');
-                    tr.innerHTML += `
-                        <td class="text-success align-middle fw-bold">${stats[m.id].pctN}%</td>
-                        <td class="text-warning align-middle fw-bold">${stats[m.id].pctJ}%</td>
-                        <td class="text-danger align-middle fw-bold">${stats[m.id].atrasos}</td>
-                        <td class="align-middle fw-bold ${colorP}">${pts}</td>
-                    `;
-                } else { tr.innerHTML += `<td>-</td><td>-</td><td>-</td><td>-</td>`; }
-                
+                const pts = stats[m.id].puntaje;
+                tr.innerHTML += `<td class="fw-bold">${stats[m.id].pctN}%</td><td class="fw-bold">${stats[m.id].pctJ}%</td><td class="fw-bold ${pts < 0 ? 'text-danger':'text-success'}">${pts}</td>`;
                 body.appendChild(tr);
+            });
+            
+            // Actualizar lista pública
+            const pubList = document.getElementById('listaHorariosPublicos');
+            pubList.innerHTML = '';
+            fechasTodas.forEach(f => {
+                const ens = asistencia[f];
+                pubList.innerHTML += `<li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span><b>${obtenerDia(f)}</b> ${f}</span>
+                        <span class="badge bg-primary">${ens.horaInicio} - ${ens.horaFin}</span>
+                    </div>
+                    <small class="text-muted d-block">🎭 ${ens.coreografias || "TBD"}</small>
+                    <small class="text-primary fw-bold">📍 ${ens.lugar || "SoulFit"}</small></li>`;
             });
         }
 
@@ -539,52 +449,18 @@
             renderUI();
         });
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 7: GESTIÓN DE ENSAYOS Y EDICIÓN
         // ==========================================
-        document.getElementById('btnManageEnsayo').onclick = () => {
-            const tb = document.getElementById('listaCreaModal'); tb.innerHTML = '';
-            document.getElementById('crearFecha').value = ''; 
-            document.getElementById('crearCoreos').value = '';
-            document.getElementById('crearLugar').value = ''; // Limpiar el lugar
-            
-            elenco.forEach(m => {
-                tb.innerHTML += `<tr><td><small>${formatearNombre(m.nombre)}</small></td><td>
-                    <select class="form-select form-select-sm sel-crea" data-id="${m.id}">
-                        <option value="Pendiente">-- Pendiente (Base) --</option>
-                        <option value="Permiso tarde">Tiene permiso tarde</option>
-                        <option value="Permiso">Tiene permiso falta</option>
-                        <option value="Faltó">Faltó</option>
-                    </select></td></tr>`;
-            });
-            new bootstrap.Modal(document.getElementById('modalCrearEnsayo')).show();
-        };
-
-        document.getElementById('btnSaveNuevoEnsayo').onclick = async () => {
-            const f = document.getElementById('crearFecha').value;
-            const hIni = document.getElementById('crearHora').value;
-            const hFin = document.getElementById('crearHoraFin').value;
-            const coreos = document.getElementById('crearCoreos').value || "Por definir";
-            const lugarEns = document.getElementById('crearLugar').value || ""; // Capturar lugar
-            
-            if(!f) return;
-            let det = {};
-            document.querySelectorAll('.sel-crea').forEach(s => det[s.getAttribute('data-id')] = { estado: s.value, hora: (s.value==="Pendiente"?"-":"") });
-            
-            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { 
-                fecha: f, horaInicio: hIni, horaFin: hFin, coreografias: coreos, lugar: lugarEns, detalle: det 
-            });
-            bootstrap.Modal.getInstance(document.getElementById('modalCrearEnsayo')).hide();
-            cargarDatos();
-        };
-
         document.addEventListener('click', (e) => {
             if(e.target.closest('.btn-edi')) {
                 const f = e.target.closest('.btn-edi').getAttribute('data-fecha');
                 const ens = asistencia[f];
-                document.getElementById('editFecha').value = f;
+                document.getElementById('editFechaId').value = f;
+                document.getElementById('editFechaData').value = f;
                 document.getElementById('editHoraInicio').value = ens.horaInicio;
-                document.getElementById('editLugar').value = ens.lugar || ""; // Llenar el select con el lugar guardado
+                document.getElementById('editHoraFin').value = ens.horaFin || "21:30";
+                document.getElementById('editLugar').value = ens.lugar || "";
                 
                 const tb = document.getElementById('listaEditModal'); tb.innerHTML = '';
                 elenco.forEach(m => {
@@ -592,10 +468,8 @@
                     tb.innerHTML += `<tr><td><small>${formatearNombre(m.nombre)}</small></td>
                         <td><select class="form-select form-select-sm sel-edi" data-id="${m.id}">
                             <option value="Pendiente" ${inf.estado==="Pendiente"?"selected":""}>Pendiente</option>
-                            <option value="Puntual" ${inf.estado==="Puntual"?"selected":""}>Puntual</option>
-                            <option value="Atrasado" ${inf.estado==="Atrasado"?"selected":""}>Atrasado</option>
-                            <option value="Permiso tarde" ${inf.estado==="Permiso tarde"?"selected":""}>P. Tarde</option>
-                            <option value="Permiso" ${inf.estado==="Permiso"?"selected":""}>P. Falta</option>
+                            <option value="Asistió" ${inf.estado==="Asistió"?"selected":""}>Asistió</option>
+                            <option value="Permiso" ${inf.estado==="Permiso"?"selected":""}>Permiso</option>
                             <option value="Faltó" ${inf.estado==="Faltó"?"selected":""}>Faltó</option>
                         </select></td>
                         <td><input type="text" class="form-control form-control-sm in-edi" data-id="${m.id}" value="${inf.hora}"></td></tr>`;
@@ -605,9 +479,11 @@
         });
 
         document.getElementById('btnSaveEdicion').onclick = async () => {
-            const f = document.getElementById('editFecha').value;
-            const h = document.getElementById('editHoraInicio').value;
-            const l = document.getElementById('editLugar').value || ""; // Actualizar lugar
+            const fOriginal = document.getElementById('editFechaId').value;
+            const fNueva = document.getElementById('editFechaData').value;
+            const hI = document.getElementById('editHoraInicio').value;
+            const hF = document.getElementById('editHoraFin').value;
+            const lug = document.getElementById('editLugar').value;
             
             let det = {};
             document.querySelectorAll('.sel-edi').forEach(s => {
@@ -615,8 +491,15 @@
                 const hr = document.querySelector(`.in-edi[data-id="${id}"]`).value;
                 det[id] = { estado: s.value, hora: hr };
             });
+
+            // Si cambió la fecha, borramos la antigua y creamos la nueva
+            if(fOriginal !== fNueva) {
+                await set(ref(db, `ensayos/${fOriginal.substring(0,7)}/${fOriginal}`), null);
+            }
             
-            await update(ref(db, `ensayos/${f.substring(0,7)}/${f}`), { horaInicio: h, lugar: l, detalle: det });
+            await update(ref(db, `ensayos/${fNueva.substring(0,7)}/${fNueva}`), { 
+                fecha: fNueva, horaInicio: hI, horaFin: hF, lugar: lug, detalle: det 
+            });
             bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide();
             cargarDatos();
         };
