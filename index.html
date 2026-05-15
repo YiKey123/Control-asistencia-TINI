@@ -342,7 +342,7 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 5: RENDERIZADO DE INTERFAZ (TABLA INVERTIDA)
         // ==========================================
         function renderUI() {
@@ -354,12 +354,14 @@
             let fechasTodas = Object.keys(asistencia).sort(); 
             fechasTodas.forEach(f => {
                 const ens = asistencia[f];
+                const lugarMostrado = ens.lugar ? ens.lugar : "Por definir";
                 pubList.innerHTML += `<li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span><b class="dia-semana">${obtenerDia(f)}</b> ${f}</span>
                         <span class="badge bg-primary fs-6">${ens.horaInicio || "19:00"} - ${ens.horaFin || "21:30"}</span>
                     </div>
-                    <small class="text-muted">🎭 Coreos: <span class="fst-italic">${ens.coreografias || "Por definir"}</span></small>
+                    <small class="text-muted d-block">🎭 Coreos: <span class="fst-italic">${ens.coreografias || "Por definir"}</span></small>
+                    <small class="text-primary fw-bold">📍 Lugar: ${lugarMostrado}</small>
                 </li>`;
             });
 
@@ -371,7 +373,7 @@
             selM.innerHTML = '<option value="">-- Tu nombre oficial --</option>';
             [...elenco].sort((a,b)=>a.nombre.localeCompare(b.nombre)).forEach(m => selM.innerHTML += `<option value="${m.id}">${m.nombre}</option>`);
 
-            // Vista Admin - Tabla Invertida (Filas: Integrantes, Columnas: Fechas)
+            // Vista Admin - Tabla Invertida
             let elencoOrd = [...elenco];
             if(sortMiem === 'pDesc') elencoOrd.sort((a,b) => stats[b.id].pctN - stats[a.id].pctN);
             if(sortMiem === 'pAsc') elencoOrd.sort((a,b) => stats[a.id].pctN - stats[b.id].pctN);
@@ -379,7 +381,7 @@
             if(sortMiem === 'zA') elencoOrd.sort((a,b) => b.nombre.localeCompare(a.nombre));
 
             const head = document.getElementById('headerAdmin');
-            head.innerHTML = '<th class="align-middle text-start" style="min-width: 200px;">👥 Integrante</th>';
+            head.innerHTML = '<th class="align-middle text-start" style="min-width: 150px;">👥 Integrante</th>';
             
             fechasTodas.forEach(f => {
                 const ens = asistencia[f];
@@ -401,7 +403,8 @@
             body.innerHTML = '';
             elencoOrd.forEach(m => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<th class="text-start align-middle bg-white">${m.nombre}</th>`;
+                // Uso de formatearNombre para hacer la columna más angosta
+                tr.innerHTML = `<th class="text-start align-middle bg-white nombre-corto">${formatearNombre(m.nombre)}</th>`;
                 
                 fechasTodas.forEach(f => {
                     const ens = asistencia[f];
@@ -430,6 +433,7 @@
                 body.appendChild(tr);
             });
         }
+
         // ==========================================
         // MÓDULO 6: CÁMARA TRASERA Y QR
         // ==========================================
