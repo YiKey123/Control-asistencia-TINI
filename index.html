@@ -335,7 +335,7 @@
             return { stats, tEnsayos: tEnsayosActivos };
         }
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 5: RENDERIZADO DE INTERFAZ
         // ==========================================
         function renderUI() {
@@ -374,8 +374,8 @@
                     td.className = "align-middle";
                     
                     if (info.estado === "Pendiente") { td.className += " bg-light text-muted"; td.innerHTML = "-"; }
-                    else if (info.estado === "Asistió") { td.className += " estado-asistio"; td.innerHTML = `✔<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:60px;">${info.hora}</small>`; }
-                    else if (info.estado === "Permiso") { td.className += " estado-permiso"; td.innerHTML = `●<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:60px;">${info.hora}</small>`; }
+                    else if (info.estado === "Asistió") { td.className += " estado-asistio"; td.innerHTML = `✔<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:90px;">${info.hora}</small>`; }
+                    else if (info.estado === "Permiso") { td.className += " estado-permiso"; td.innerHTML = `●<br><small title="${info.hora}" class="text-truncate d-inline-block" style="max-width:90px;">${info.hora}</small>`; }
                     else { td.className += " estado-falto"; td.innerHTML = `✘`; }
                     tr.appendChild(td);
                 });
@@ -403,7 +403,7 @@
             });
         }
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 6: CÁMARA TRASERA Y QR
         // ==========================================
         document.getElementById('inputBuscaNombre').addEventListener('input', (e) => {
@@ -482,11 +482,24 @@
             const now = new Date();
             const hrReal = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
             
+            // Lógica para preservar el permiso
+            const prev = asistencia[scanConfig.fecha].detalle[id];
+            let hrFinal = hrReal;
+
+            if (prev && prev.hora && prev.hora !== "-") {
+                // Si el registro de la hora incluye alguna de estas palabras, es que tenía permiso especial
+                if (prev.hora.includes("tarde") || prev.hora.includes("temprano") || prev.estado === "Permiso") {
+                    // Extraemos solo la etiqueta inicial antes de los dos puntos (ej: "Llegaré tarde")
+                    const tipoPermiso = prev.hora.split(':')[0];
+                    hrFinal = `${hrReal} (${tipoPermiso})`;
+                }
+            }
+            
             try {
-                await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: "Asistió", hora: hrReal });
-                asistencia[scanConfig.fecha].detalle[id] = { estado: "Asistió", hora: hrReal }; 
+                await update(ref(db, `ensayos/${scanConfig.fecha.substring(0,7)}/${scanConfig.fecha}/detalle/${id}`), { estado: "Asistió", hora: hrFinal });
+                asistencia[scanConfig.fecha].detalle[id] = { estado: "Asistió", hora: hrFinal }; 
                 txt.className="scan-success-toast text-center"; 
-                txt.innerHTML = `✅ ¡Registrado!<br><span class="text-dark">${miem.nombre}</span><br><small class="text-muted">Asistió (${hrReal})</small>`;
+                txt.innerHTML = `✅ ¡Registrado!<br><span class="text-dark">${miem.nombre}</span><br><small class="text-muted">Asistió (${hrFinal})</small>`;
             } catch (er) { 
                 txt.className="scan-success-toast bg-danger text-white border-danger"; 
                 txt.innerHTML = "Error conexión"; 
