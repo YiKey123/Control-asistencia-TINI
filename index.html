@@ -80,9 +80,12 @@
             
             <div class="col-md-6">
                 <div class="card h-100 shadow-sm border-0">
-                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <div class="card-header bg-dark text-white d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                         <span class="fw-bold">📅 Calendario de Ensayos</span>
-                        <button class="btn btn-warning btn-sm fw-bold" id="btnPublicoPermiso" data-bs-toggle="modal" data-bs-target="#modalPermiso">✋ Pedir Permiso</button>
+                        <div class="d-flex gap-2 w-100 w-md-auto justify-content-end">
+                            <button class="btn btn-outline-light btn-sm fw-bold flex-grow-1 flex-md-grow-0" id="btnVerMisPermisos">👀 Mis Permisos</button>
+                            <button class="btn btn-warning btn-sm fw-bold flex-grow-1 flex-md-grow-0" id="btnPublicoPermiso" data-bs-toggle="modal" data-bs-target="#modalPermiso">✋ Pedir Permiso</button>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <ul id="listaHorariosPublicos" class="list-group list-group-flush"></ul>
@@ -150,6 +153,10 @@
     
     <div class="modal fade" id="modalElenco" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-dark text-white"><h5 class="modal-title">Miembros del Elenco</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="input-group mb-3"><input type="text" id="nuevoNombre" class="form-control" placeholder="Nombre completo..."><button class="btn btn-success" id="btnAddMiem">Agregar</button></div><ul class="list-group" id="listaElencoCrud"></ul></div></div></div></div>
     
+    <div class="modal fade" id="modalMisPermisos" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold">👀 Mis Permisos Solicitados</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body p-0"><div class="table-responsive m-0"><table class="table table-sm align-middle text-center m-0"><thead><tr class="table-light"><th>Fecha</th><th>Tipo</th><th>Motivo</th><th>Editar</th></tr></thead><tbody id="listaMisPermisos"></tbody></table></div></div></div></div></div>
+
+    <div class="modal fade" id="modalHistorialPermiso" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-secondary text-white"><h5 class="modal-title fw-bold">🕒 Historial de Modificaciones</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body" id="cuerpoHistorialPermiso"></div></div></div></div
+                                                                                                                                                                                                                                                                                                                                                                                                         >
     <div class="modal fade" id="modalBandeja" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title">Bandeja de Permisos</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-0"><div class="table-responsive m-0"><table class="table table-sm table-striped m-0"><thead><tr><th>Ensayo</th><th>Integrante</th><th>Tipo</th><th>Justificación</th></tr></thead><tbody id="listaBandeja"></tbody></table></div></div></div></div></div>
 
     <div class="modal fade" id="modalEditarMiembro" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header bg-warning"><h5 class="modal-title fw-bold">⚙️ Editar Integrante</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
@@ -238,7 +245,7 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
@@ -573,7 +580,7 @@
             renderUI();
         });
 
-                // ==========================================
+        // ==========================================
         // MÓDULO 7: GESTIÓN DE ENSAYOS Y EDICIÓN
         // ==========================================
         document.getElementById('btnManageEnsayo').onclick = () => {
@@ -673,8 +680,8 @@
             cargarDatos();
         };
 
-        // ==========================================
-        // MÓDULO 8: GESTIÓN DE PERMISOS
+                // ==========================================
+        // MÓDULO 8: GESTIÓN DE PERMISOS, HISTORIAL Y LOCALSTORAGE
         // ==========================================
         document.getElementById('btnDoSendPermiso').addEventListener('click', async () => {
             const id = document.getElementById('permisoMiem').value;
@@ -686,21 +693,16 @@
             
             const pId = 'p_' + Date.now();
             await set(ref(db, `permisos/${pId}`), { 
-                miemId: id, fecha: fecha, tipo: tipo, razon: razon, enviada: new Date().toISOString() 
+                miemId: id, fecha: fecha, tipo: tipo, razon: razon, enviada: new Date().toISOString(), historial: [] 
             });
             
-            // Lógica inteligente de estados
-            let estadoActual = "Pendiente";
-            if (asistencia[fecha] && asistencia[fecha].detalle[id]) {
-                estadoActual = asistencia[fecha].detalle[id].estado;
-            }
+            // Guardar el ID en el almacenamiento local del celular del usuario
+            let misPermisosLocal = JSON.parse(localStorage.getItem('misPermisosTini')) || [];
+            misPermisosLocal.push(pId);
+            localStorage.setItem('misPermisosTini', JSON.stringify(misPermisosLocal));
 
-            let estadoBase = estadoActual; 
-            if (tipo === "Falta completa") {
-                estadoBase = "Permiso"; // Falta justificada
-            } else if (estadoActual === "Permiso") {
-                estadoBase = "Pendiente"; // Si cambió de idea y ahora sí irá (tarde/temprano), vuelve a Pendiente hasta que escanee.
-            }
+            let estadoBase = "Permiso"; 
+            if (tipo === "Llegaré tarde" || tipo === "Me iré temprano") estadoBase = "Asistió";
 
             const mes = fecha.substring(0, 7);
             const anotacion = `${tipo}: ${razon}`.substring(0, 15) + "...";
@@ -712,6 +714,30 @@
             cargarDatos();
         });
 
+        // ------------------ VISTA PÚBLICA: MIS PERMISOS ------------------
+        document.getElementById('btnVerMisPermisos').onclick = () => {
+            const tb = document.getElementById('listaMisPermisos');
+            tb.innerHTML = '';
+            let misPermisosLocal = JSON.parse(localStorage.getItem('misPermisosTini')) || [];
+
+            let permisosEncontrados = 0;
+            misPermisosLocal.forEach(pId => {
+                const p = listaPermisos[pId];
+                if (p) {
+                    permisosEncontrados++;
+                    tb.innerHTML += `<tr>
+                        <td class="align-middle fw-bold">${p.fecha}</td>
+                        <td class="align-middle"><span class="badge bg-warning text-dark">${p.tipo}</span></td>
+                        <td class="align-middle text-start" style="white-space: normal; min-width: 150px;"><small>${p.razon}</small></td>
+                        <td class="align-middle"><button class="btn btn-sm btn-outline-primary py-0 px-2 btn-editar-global" data-pid="${pId}" data-rol="Usuario">✏️</button></td>
+                    </tr>`;
+                }
+            });
+            if(permisosEncontrados === 0) tb.innerHTML = '<tr><td colspan="4" class="text-muted py-4">No has enviado permisos desde este dispositivo.</td></tr>';
+            new bootstrap.Modal(document.getElementById('modalMisPermisos')).show();
+        };
+
+        // ------------------ VISTA ADMIN: BANDEJA ------------------
         document.getElementById('btnManagePermisos').onclick = () => {
             actualizarListaBandeja();
             new bootstrap.Modal(document.getElementById('modalBandeja')).show();
@@ -723,22 +749,54 @@
             const arrayPermisos = Object.entries(listaPermisos).map(([pId, data]) => ({ pId, ...data }));
             
             arrayPermisos.sort((a,b)=> new Date(b.enviada)-new Date(a.enviada)).forEach(p => {
-                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido";
+                const nom = elenco.find(m=>m.id===p.miemId)?.nombre || "Desconocido"; // Usa nombre completo real
+                
+                let btnHistorial = (p.historial && p.historial.length > 0) ? 
+                    `<button class="btn btn-sm btn-info py-0 px-2 btn-ver-historial fw-bold" data-pid="${p.pId}">🕒 Ver Cambios</button>` : '';
+
                 tb.innerHTML += `<tr>
-                    <td class="align-middle">${p.fecha}</td>
-                    <td class="align-middle">${nom}</td>
-                    <td class="align-middle"><span class="badge bg-warning text-dark">${p.tipo}</span></td>
-                    <td class="d-flex justify-content-between align-items-center gap-2">
-                        <small class="text-truncate d-inline-block" style="max-width: 130px;" title="${p.razon}">${p.razon}</small>
-                        <button class="btn btn-sm btn-outline-dark py-0 px-1 btn-edit-permiso" data-pid="${p.pId}">✏️</button>
+                    <td class="align-middle fw-bold">${p.fecha}</td>
+                    <td class="align-middle fw-bold text-primary">${nom}</td>
+                    <td class="align-middle"><span class="badge bg-warning text-dark fs-6">${p.tipo}</span></td>
+                    <td class="align-middle">
+                        <div class="fs-6 text-dark" style="white-space: normal; min-width: 200px;">${p.razon}</div>
+                        <div class="mt-2 d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-dark py-0 px-2 btn-editar-global" data-pid="${p.pId}" data-rol="Admin">✏️ Editar</button>
+                            ${btnHistorial}
+                        </div>
                     </td>
                 </tr>`;
             });
         }
 
+        // ------------------ LÓGICA COMPARTIDA DE EDICIÓN E HISTORIAL ------------------
         document.addEventListener('click', async (e) => {
-            if(e.target.closest('.btn-edit-permiso')) {
-                const pId = e.target.closest('.btn-edit-permiso').dataset.pid;
+            
+            // VER HISTORIAL
+            if(e.target.closest('.btn-ver-historial')) {
+                const pId = e.target.closest('.btn-ver-historial').dataset.pid;
+                const p = listaPermisos[pId];
+                if(!p || !p.historial) return;
+                
+                let bodyH = document.getElementById('cuerpoHistorialPermiso');
+                bodyH.innerHTML = `<p class="small text-muted mb-3">Versión original enviada: ${new Date(p.enviada).toLocaleString()}</p>`;
+                
+                p.historial.forEach((h, index) => {
+                    const fechaMod = new Date(h.fechaModificacion).toLocaleString();
+                    bodyH.innerHTML += `<div class="border-start border-3 border-info ps-3 mb-3">
+                        <small class="fw-bold text-primary">Modificación ${index + 1} (${fechaMod}) por ${h.modificadoPor}</small><br>
+                        <small><b>Tipo que tenía:</b> <span class="badge bg-light text-dark border">${h.tipoAnterior}</span></small><br>
+                        <small><b>Decía:</b> "${h.razonAnterior}"</small>
+                    </div>`;
+                });
+                new bootstrap.Modal(document.getElementById('modalHistorialPermiso')).show();
+            }
+
+            // EDITAR PERMISO (Funciona para el Usuario y para el Admin)
+            if(e.target.closest('.btn-editar-global')) {
+                const btn = e.target.closest('.btn-editar-global');
+                const pId = btn.dataset.pid;
+                const rolModificador = btn.dataset.rol; // "Admin" o "Usuario"
                 const permiso = listaPermisos[pId];
                 if(!permiso) return;
 
@@ -757,35 +815,44 @@
                 if(nuevaRazon === null) return; 
 
                 if (nuevaRazon.trim() !== "" || nuevoTipo !== permiso.tipo) {
+                    
+                    // REGISTRAR EN EL HISTORIAL ANTES DE CAMBIAR
+                    if(!permiso.historial) permiso.historial = [];
+                    permiso.historial.push({
+                        fechaModificacion: new Date().toISOString(),
+                        tipoAnterior: permiso.tipo,
+                        razonAnterior: permiso.razon,
+                        modificadoPor: rolModificador
+                    });
+
                     permiso.tipo = nuevoTipo;
                     permiso.razon = nuevaRazon.trim();
                     
-                    await update(ref(db, `permisos/${pId}`), { tipo: permiso.tipo, razon: permiso.razon });
+                    await update(ref(db, `permisos/${pId}`), { tipo: permiso.tipo, razon: permiso.razon, historial: permiso.historial });
                     
+                    // Actualizar estado en tabla de ensayos
                     let estadoActual = "Pendiente";
                     if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
                         estadoActual = asistencia[permiso.fecha].detalle[permiso.miemId].estado;
                     }
 
                     let estadoBase = estadoActual; 
-                    if (permiso.tipo === "Falta completa") {
-                        estadoBase = "Permiso";
-                    } else if (estadoActual === "Permiso" && permiso.tipo !== "Falta completa") {
-                        estadoBase = "Pendiente";
-                    }
+                    if (permiso.tipo === "Falta completa") estadoBase = "Permiso";
+                    else if (estadoActual === "Permiso" && permiso.tipo !== "Falta completa") estadoBase = "Pendiente";
 
                     const mes = permiso.fecha.substring(0, 7);
                     const anotacion = `${permiso.tipo}: ${permiso.razon}`.substring(0, 15) + "...";
                     
                     await update(ref(db, `ensayos/${mes}/${permiso.fecha}/detalle/${permiso.miemId}`), { estado: estadoBase, hora: anotacion });
                     
-                    if(asistencia[permiso.fecha] && asistencia[permiso.fecha].detalle[permiso.miemId]) {
-                        asistencia[permiso.fecha].detalle[permiso.miemId].estado = estadoBase;
-                        asistencia[permiso.fecha].detalle[permiso.miemId].hora = anotacion;
-                    }
+                    // Recargar vistas en vivo
+                    cargarDatos();
                     
-                    actualizarListaBandeja();
-                    renderUI();
+                    if(rolModificador === "Usuario") {
+                        // Refrescar el modal de "Mis permisos" cerrándolo y volviéndolo a abrir simulando click
+                        bootstrap.Modal.getInstance(document.getElementById('modalMisPermisos')).hide();
+                        setTimeout(() => document.getElementById('btnVerMisPermisos').click(), 400);
+                    }
                 }
             }
         });
