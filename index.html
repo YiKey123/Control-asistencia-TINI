@@ -262,21 +262,18 @@
             { fecha: "2026-06-03", horaInicio: "18:00", horaFin: "20:00", coreografias: "Posiciones", valores: [] }
         ];
 
-        // ==========================================
+                // ==========================================
         // MÓDULO 4: FUNCIONES DE ARRANQUE Y LÓGICA
         // ==========================================
         const generarId = () => 'id_' + Math.random().toString(36).substr(2, 9);
         
         const formatearNombre = (m) => {
-            // Prioridad 1: Apodo personalizado manual
             if (m.apodoPersonalizado && m.apodoPersonalizado.trim() !== "") {
                 return m.apodoPersonalizado;
             }
-            // Prioridad 2: Nombres seleccionados por checkboxes
             if (m.apodo && m.apodo.length > 0) {
                 return m.apodo.join('<br>');
             }
-            // Prioridad 3: Regla automática (1er y 3er nombre)
             const partes = m.nombre.trim().split(' ');
             if (partes.length === 1) return partes[0];
             if (partes.length === 2) return `${partes[0]}<br>${partes[1]}`;
@@ -341,12 +338,69 @@
             } catch(e) { document.getElementById('statusText').innerHTML = "<span class='text-danger'>Error de conexión.</span>"; }
         }
 
+        // --- NUEVA FUNCIÓN: BARRIDO DE FALTAS AUTOMÁTICO ---
+        async function conciliarFaltasAutomaticas() {
+            const now = new Date();
+            // Construimos la fecha y hora locales del dispositivo
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hoyStr = `${year}-${month}-${day}`;
+            const horaActualStr = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+
+            let ocurrieronCambios = false;
+
+            for (const fechaEnsayo in asistencia) {
+                const ens = asistencia[fechaEnsayo];
+                const horaFinEnsayo = ens.horaFin || "23:59";
+
+                let ensayoTerminado = false;
+                
+                // Si la fecha del ensayo es de ayer o antes
+                if (fechaEnsayo < hoyStr) {
+                    ensayoTerminado = true;
+                } 
+                // O si es de hoy, pero ya pasó la hora de fin
+                else if (fechaEnsayo === hoyStr && horaActualStr > horaFinEnsayo) {
+                    ensayoTerminado = true;
+                }
+
+                if (ensayoTerminado) {
+                    let actualizacionDB = {};
+                    
+                    for (const m of elenco) {
+                        const info = ens.detalle[m.id];
+                        // Si el ensayo ya acabó y alguien sigue en "Pendiente", es falta directa
+                        if (info && info.estado === "Pendiente") {
+                            ens.detalle[m.id].estado = "Faltó";
+                            ens.detalle[m.id].hora = "";
+                            
+                            // Preparamos el paquete para guardar en Firebase
+                            actualizacionDB[`detalle/${m.id}/estado`] = "Faltó";
+                            actualizacionDB[`detalle/${m.id}/hora`] = "";
+                            ocurrieronCambios = true;
+                        }
+                    }
+                    
+                    // Si se encontraron inasistencias sin justificar, se suben a la base de datos de golpe
+                    if (Object.keys(actualizacionDB).length > 0) {
+                        await update(ref(db, `ensayos/${fechaEnsayo.substring(0,7)}/${fechaEnsayo}`), actualizacionDB);
+                    }
+                }
+            }
+            return ocurrieronCambios;
+        }
+
         async function cargarDatos() {
             const mes = document.getElementById('filtroMes').value || new Date().toISOString().substring(0, 7);
             const snap = await get(ref(db, `ensayos/${mes}`));
             asistencia = snap.exists() ? snap.val() : {};
             const pSnap = await get(ref(db, `permisos`));
             listaPermisos = pSnap.exists() ? pSnap.val() : {};
+            
+            // Ejecutamos el barrido de faltas justo antes de pintar la tabla
+            await conciliarFaltasAutomaticas();
+            
             renderUI();
         }
 
